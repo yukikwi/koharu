@@ -105,6 +105,10 @@ jobs:
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          # Ubuntu 24.04 system libs use .relr.dyn ELF sections that the old
+          # eu-strip inside linuxdeploy can't handle.  NO_STRIP disables the
+          # strip step so linuxdeploy doesn't error out on them.
+          NO_STRIP: "true"
         with:
           tauriScript: npx @tauri-apps/cli
           tagName: ${{ github.ref_name }}
