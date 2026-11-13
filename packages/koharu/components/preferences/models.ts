@@ -38,7 +38,7 @@ export const modelNames: Record<ModelName, string> = {
 }
 
 export const FLUX3_KLEIN_PROMPT =
-  'Remove all text and lettering, and reconstruct the hidden artwork and background in the same style.'
+  "Remove only the text and lettering. Keep the speech bubble's flat fill colour, outline and tail exactly as they are. Fill the removed text with the surrounding bubble colour."
 
 export const MINIMAX_H3_IMAGE_PROMPT =
   'Edit <Picture 1>. Remove all text and lettering, and reconstruct the hidden artwork and background in the same style.'

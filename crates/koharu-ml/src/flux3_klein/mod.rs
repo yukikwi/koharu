@@ -30,7 +30,7 @@ crate::model_repository!("black-forest-labs/FLUX.2-small-decoder" @ "a3efc24f613
     VAE_WEIGHTS = "full_encoder_small_decoder.safetensors"
 });
 
-pub const DEFAULT_PROMPT: &str = "Remove all text and lettering, and reconstruct the hidden artwork and background in the same style.";
+pub const DEFAULT_PROMPT: &str = "Remove only the text and lettering. Keep the speech bubble's flat fill colour, outline and tail exactly as they are. Fill the removed text with the surrounding bubble colour.";
 
 /// FLUX.2 Klein is calibrated for 1 MP; latents are 16-pixel aligned
 /// (8x VAE downsampling followed by 2x2 patchification into 128 channels).
