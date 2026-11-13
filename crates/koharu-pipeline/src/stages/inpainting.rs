@@ -542,12 +542,9 @@ fn flat_fill_regions(input: &StageInput, width: u32, height: u32) -> Result<Vec<
 }
 
 /// Detection writes the text mask from model masks, which a user-drawn text region
-/// never has. Where an earlier detection already segmented text pixels inside the
-/// region, only those pixels are masked, so the box cannot erase the bubble around
-/// the text. Otherwise the region geometry itself is the mask.
+/// never has, so its geometry is the mask. Detected regions are already covered.
 fn fill_user_text_regions(
     input: &StageInput,
-    detected: Option<&GrayImage>,
     mask: &mut GrayImage,
     text_mask: &mut GrayImage,
 ) -> Result<()> {
@@ -577,22 +574,8 @@ fn fill_user_text_regions(
         if polygon.len() < 3 {
             continue;
         }
-        let mut region = GrayImage::new(mask.width(), mask.height());
-        imageproc::drawing::draw_polygon_mut(&mut region, &polygon, Luma([255]));
-        if let Some(detected) = detected {
-            let mut text = region.clone();
-            for (target, source) in text.iter_mut().zip(detected.as_raw()) {
-                *target = (*target).min(*source);
-            }
-            if text.iter().any(|value| *value >= 127) {
-                region = text;
-            }
-        }
-        for target in [&mut *mask, &mut *text_mask] {
-            for (target, source) in target.iter_mut().zip(region.as_raw()) {
-                *target = (*target).max(*source);
-            }
-        }
+        imageproc::drawing::draw_polygon_mut(mask, &polygon, Luma([255]));
+        imageproc::drawing::draw_polygon_mut(text_mask, &polygon, Luma([255]));
     }
     Ok(())
 }
@@ -677,13 +660,7 @@ async fn prepare(input: &StageInput) -> Result<InpaintInput> {
                 }
             }
         }
-        let detected = input
-            .images
-            .get(&input.scene, page, "text-mask")
-            .await?
-            .map(|image| image.to_luma8())
-            .filter(|image| image.dimensions() == mask.dimensions());
-        fill_user_text_regions(input, detected.as_ref(), &mut mask, &mut text_mask)?;
+        fill_user_text_regions(input, &mut mask, &mut text_mask)?;
     }
     if let Some(bounds) = input.region {
         for (x, y, pixel) in mask.enumerate_pixels_mut() {
