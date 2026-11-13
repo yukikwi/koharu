@@ -12,16 +12,22 @@ export function CanvasCommandBar() {
   const jobs = useKoharuStore((state) => state.jobs)
   const running = Object.values(jobs).find((job) => job.state === 'running')
 
-  const run = (selection: PipelineScope, stages: Stage[]) => {
+  const run = (selection: PipelineScope, selected: Stage[]) => {
     if (!page) return
-    const scope: Scope =
-      selection === 'project'
+    let stages = selected
+    const newRegions = selection === 'new-regions'
+    // New regions are never detected; detection would rewrite reviewed regions.
+    if (newRegions) stages = stages.filter((stage) => stage !== 'detection')
+    if (stages.length === 0) return
+    const scope: Scope = newRegions
+      ? { scope: 'new_regions', value: [page.id] }
+      : selection === 'project'
         ? { scope: 'project' }
         : selection === 'selected-pages'
           ? { scope: 'pages', value: selectedPages }
           : { scope: 'pages', value: [page.id] }
     const operation =
-      stages.length === pipelineStages.length
+      !newRegions && stages.length === pipelineStages.length
         ? ({ operation: 'full' } as const)
         : stages.length === 1
           ? ({ operation: 'only', stage: stages[0]! } as const)

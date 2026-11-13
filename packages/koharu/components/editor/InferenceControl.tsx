@@ -47,7 +47,9 @@ export function InferenceControl({
   const jobs = useKoharuStore((state) => state.jobs)
   const selectedPages = useKoharuStore((state) => state.selectedPages)
   const running = Object.values(jobs).find((job) => job.state === 'running') ?? null
-  const unavailable = scope === 'selected-pages' && selectedPages.length === 0
+  const unavailable =
+    (scope === 'selected-pages' && selectedPages.length === 0) ||
+    (scope === 'new-regions' && stages.every((stage) => stage === 'detection'))
 
   const stop = () => {
     if (!running) return
@@ -293,6 +295,13 @@ function RuntimeSelector({
               label={t('inference.entireProject')}
               detail={t('inference.entireProjectDescription')}
               selected={scope === 'project'}
+              onSelect={chooseScope}
+            />
+            <SelectorOption
+              value='new-regions'
+              label={t('inference.newRegions')}
+              detail={t('inference.newRegionsDescription')}
+              selected={scope === 'new-regions'}
               onSelect={chooseScope}
             />
           </SelectorPanel>

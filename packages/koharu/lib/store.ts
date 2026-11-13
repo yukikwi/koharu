@@ -17,7 +17,7 @@ import type {
 } from '@koharu/bridge/protocol'
 import { toast } from '@koharu/ui/components/toast'
 
-export type CanvasTool = 'select' | 'text' | 'draw' | 'eraser' | 'color_picker' | 'remove' | 'pan'
+export type CanvasTool = 'select' | 'text' | 'text_region' | 'draw' | 'eraser' | 'color_picker' | 'remove' | 'pan'
 export const MIN_BRUSH_DIAMETER = 1
 export function maxBrushDiameter(size: PageSize): number {
   // Assume that for all sizes below 2048 width, 128 is sufficient.
@@ -36,7 +36,7 @@ export interface CanvasBrush {
 export type InspectorSection = 'copy' | 'type' | 'layers'
 export type ShortcutAction = CanvasTool | 'fit'
 export type Shortcuts = Record<ShortcutAction, string>
-export type PipelineScope = 'page' | 'selected-pages' | 'project'
+export type PipelineScope = 'page' | 'selected-pages' | 'project' | 'new-regions'
 export const pipelineStages: readonly Stage[] = ['detection', 'ocr', 'translation', 'inpainting']
 
 interface KoharuStore {
@@ -79,6 +79,7 @@ interface KoharuStore {
 export const defaultShortcuts: Shortcuts = {
   select: 'v',
   text: 't',
+  text_region: 'r',
   draw: 'b',
   eraser: 'e',
   color_picker: 'i',

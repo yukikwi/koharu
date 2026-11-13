@@ -48,6 +48,7 @@ const BRUSH_DIAMETER_STEP = 4
 const canvasCursors = {
   select: undefined,
   text: 'text',
+  text_region: 'crosshair',
   draw: 'none',
   eraser: 'none',
   color_picker: 'crosshair',
@@ -65,7 +66,7 @@ type Gesture =
       additive: boolean
     }
   | { kind: 'move'; pointer: number; start: Point; originals: TransformFrame[] }
-  | { kind: 'text'; pointer: number; start: Point; frame: Frame }
+  | { kind: 'text'; pointer: number; start: Point; frame: Frame; region: boolean }
   | StrokeGesture
 
 interface StrokeGesture {
@@ -386,7 +387,16 @@ export function CanvasWorkspace() {
         return
       }
       const next = (
-        ['select', 'text', 'draw', 'eraser', 'color_picker', 'remove', 'pan'] as const
+        [
+          'select',
+          'text',
+          'text_region',
+          'draw',
+          'eraser',
+          'color_picker',
+          'remove',
+          'pan',
+        ] as const
       ).find((action) => state.shortcuts[action] === event.key.toLowerCase())
       if (next) setTool(next)
     }
@@ -531,10 +541,14 @@ export function CanvasWorkspace() {
       const { zoom } = useKoharuStore.getState().camera
       const pointText = current.frame.width < 4 / zoom && current.frame.height < 4 / zoom
       setDraft(null)
+      // A region is analysis geometry, so a click without a drag has no extent to record.
+      if (current.region && pointText) return
       void (
-        pointText
-          ? call(commands.addPointText, current.start)
-          : call(commands.addTextBox, current.frame)
+        current.region
+          ? call(commands.addTextRegion, current.frame)
+          : pointText
+            ? call(commands.addPointText, current.start)
+            : call(commands.addTextBox, current.frame)
       )
         .then((result) => {
           selectLayers([result.layer])
@@ -656,9 +670,15 @@ export function CanvasWorkspace() {
               if (!originals.length) return
               gesture.current = { kind: 'move', pointer: event.pointerId, start: point, originals }
               beginTransform(originals)
-            } else if (tool === 'text') {
+            } else if (tool === 'text' || tool === 'text_region') {
               const frame = draftFrame(point, point)
-              gesture.current = { kind: 'text', pointer: event.pointerId, start: point, frame }
+              gesture.current = {
+                kind: 'text',
+                pointer: event.pointerId,
+                start: point,
+                frame,
+                region: tool === 'text_region',
+              }
               setDraft(frame)
             } else if (tool === 'draw') {
               strokeUpdates.clear()
