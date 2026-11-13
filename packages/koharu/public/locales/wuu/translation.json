@@ -130,6 +130,8 @@
     "entireProjectDescription": "拿箇个项目里向个页面侪处理一遍。",
     "model": "模型",
     "noModel": "呒没模型",
+    "newRegions": "新个文字区域",
+    "newRegionsDescription": "只处理侬画个、还呒没识别或者翻译个文字区域。跳过检测。",
     "notSet": "还呒没设置",
     "output": "输出",
     "pipelineStages": "处理流程阶段",
@@ -138,6 +140,7 @@
     "runProcessing": "开始处理",
     "scope": "范围",
     "scopeShort": {
+      "new-regions": "新区域",
       "page": "页面",
       "project": "项目",
       "selected-pages": "拣中个页面"
@@ -509,7 +512,8 @@
     "pan": "平移",
     "remove": "移除",
     "select": "选择",
-    "text": "文本"
+    "text": "文本",
+    "text_region": "文字区域"
   },
   "updater": {
     "available": {

@@ -130,6 +130,8 @@
     "entireProjectDescription": "معالجة كل صفحة في هذا المشروع.",
     "model": "النموذج",
     "noModel": "لا يوجد نموذج",
+    "newRegions": "مناطق النص الجديدة",
+    "newRegionsDescription": "فقط مناطق النص التي رسمتها ولم يتم التعرف عليها أو ترجمتها بعد. يتخطى الكشف.",
     "notSet": "غير محدد",
     "output": "الإخراج",
     "pipelineStages": "مراحل خط المعالجة",
@@ -138,6 +140,7 @@
     "runProcessing": "تشغيل المعالجة",
     "scope": "النطاق",
     "scopeShort": {
+      "new-regions": "مناطق جديدة",
       "page": "صفحة",
       "project": "مشروع",
       "selected-pages": "التحديد"
@@ -509,7 +512,8 @@
     "pan": "تحريك",
     "remove": "إزالة",
     "select": "تحديد",
-    "text": "نص"
+    "text": "نص",
+    "text_region": "منطقة نص"
   },
   "updater": {
     "available": {

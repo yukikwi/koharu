@@ -130,6 +130,8 @@
     "entireProjectDescription": "處理此專案中的每個頁面。",
     "model": "模型",
     "noModel": "無模型",
+    "newRegions": "新建文字區域",
+    "newRegionsDescription": "僅處理手動繪製且尚未辨識或翻譯的文字區域。跳過偵測。",
     "notSet": "未設定",
     "output": "輸出",
     "pipelineStages": "處理流程階段",
@@ -138,6 +140,7 @@
     "runProcessing": "執行處理",
     "scope": "範圍",
     "scopeShort": {
+      "new-regions": "新區域",
       "page": "頁面",
       "project": "專案",
       "selected-pages": "選取範圍"
@@ -509,7 +512,8 @@
     "pan": "平移",
     "remove": "移除",
     "select": "選取",
-    "text": "文字"
+    "text": "文字",
+    "text_region": "文字區域"
   },
   "updater": {
     "available": {

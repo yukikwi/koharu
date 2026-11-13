@@ -130,6 +130,8 @@
     "entireProjectDescription": "Procesa todas las páginas de este proyecto.",
     "model": "Modelo",
     "noModel": "Sin modelo",
+    "newRegions": "Regiones de texto nuevas",
+    "newRegionsDescription": "Solo las regiones de texto dibujadas que aún no se han reconocido ni traducido. Omite la detección.",
     "notSet": "Sin definir",
     "output": "Salida",
     "pipelineStages": "Etapas del flujo",
@@ -138,6 +140,7 @@
     "runProcessing": "Ejecutar procesamiento",
     "scope": "Ámbito",
     "scopeShort": {
+      "new-regions": "Nuevas",
       "page": "Página",
       "project": "Proyecto",
       "selected-pages": "Selección"
@@ -509,7 +512,8 @@
     "pan": "Desplazar",
     "remove": "Eliminar",
     "select": "Seleccionar",
-    "text": "Texto"
+    "text": "Texto",
+    "text_region": "Región de texto"
   },
   "updater": {
     "available": {

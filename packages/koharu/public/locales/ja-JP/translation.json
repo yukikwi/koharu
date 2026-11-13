@@ -130,6 +130,8 @@
     "entireProjectDescription": "このプロジェクトの全ページを処理します。",
     "model": "モデル",
     "noModel": "モデルなし",
+    "newRegions": "新規テキスト領域",
+    "newRegionsDescription": "描画した領域のうち、未認識または未翻訳のものだけを処理します。検出は行いません。",
     "notSet": "未設定",
     "output": "出力",
     "pipelineStages": "パイプラインの工程",
@@ -138,6 +140,7 @@
     "runProcessing": "処理を実行",
     "scope": "範囲",
     "scopeShort": {
+      "new-regions": "新規",
       "page": "ページ",
       "project": "プロジェクト",
       "selected-pages": "選択範囲"
@@ -509,7 +512,8 @@
     "pan": "移動",
     "remove": "削除",
     "select": "選択",
-    "text": "テキスト"
+    "text": "テキスト",
+    "text_region": "テキスト領域"
   },
   "updater": {
     "available": {

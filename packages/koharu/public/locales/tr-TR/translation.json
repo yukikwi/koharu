@@ -130,6 +130,8 @@
     "entireProjectDescription": "Bu projedeki tüm sayfaları işler.",
     "model": "Model",
     "noModel": "Model yok",
+    "newRegions": "Yeni metin bölgeleri",
+    "newRegionsDescription": "Yalnızca çizdiğiniz ve henüz tanınmamış veya çevrilmemiş metin bölgeleri. Algılamayı atlar.",
     "notSet": "Ayarlanmadı",
     "output": "Çıktı",
     "pipelineStages": "İşlem hattı aşamaları",
@@ -138,6 +140,7 @@
     "runProcessing": "İşlemeyi çalıştır",
     "scope": "Kapsam",
     "scopeShort": {
+      "new-regions": "Yeni",
       "page": "Sayfa",
       "project": "Proje",
       "selected-pages": "Seçim"
@@ -509,7 +512,8 @@
     "pan": "Kaydır",
     "remove": "Kaldır",
     "select": "Seç",
-    "text": "Metin"
+    "text": "Metin",
+    "text_region": "Metin bölgesi"
   },
   "updater": {
     "available": {

@@ -130,6 +130,8 @@
     "entireProjectDescription": "이 프로젝트의 모든 페이지를 처리합니다.",
     "model": "모델",
     "noModel": "모델 없음",
+    "newRegions": "새 텍스트 영역",
+    "newRegionsDescription": "직접 그린 텍스트 영역 중 아직 인식되거나 번역되지 않은 것만 처리합니다. 감지는 건너뜁니다.",
     "notSet": "설정되지 않음",
     "output": "출력",
     "pipelineStages": "파이프라인 단계",
@@ -138,6 +140,7 @@
     "runProcessing": "처리 실행",
     "scope": "범위",
     "scopeShort": {
+      "new-regions": "새 영역",
       "page": "페이지",
       "project": "프로젝트",
       "selected-pages": "선택 항목"
@@ -509,7 +512,8 @@
     "pan": "이동",
     "remove": "제거",
     "select": "선택",
-    "text": "텍스트"
+    "text": "텍스트",
+    "text_region": "텍스트 영역"
   },
   "updater": {
     "available": {

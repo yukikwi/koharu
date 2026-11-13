@@ -130,6 +130,8 @@
     "entireProjectDescription": "Обработать все страницы проекта.",
     "model": "Модель",
     "noModel": "Нет модели",
+    "newRegions": "Новые области текста",
+    "newRegionsDescription": "Только нарисованные вами области, которые ещё не распознаны и не переведены. Обнаружение пропускается.",
     "notSet": "Не задано",
     "output": "Результат",
     "pipelineStages": "Этапы конвейера",
@@ -138,6 +140,7 @@
     "runProcessing": "Запустить обработку",
     "scope": "Область",
     "scopeShort": {
+      "new-regions": "Новые",
       "page": "Страница",
       "project": "Проект",
       "selected-pages": "Выбранное"
@@ -509,7 +512,8 @@
     "pan": "Перемещение",
     "remove": "Удаление",
     "select": "Выбор",
-    "text": "Текст"
+    "text": "Текст",
+    "text_region": "Область текста"
   },
   "updater": {
     "available": {

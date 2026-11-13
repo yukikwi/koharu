@@ -130,6 +130,8 @@
     "entireProjectDescription": "Traiter toutes les pages de ce projet.",
     "model": "Modèle",
     "noModel": "Aucun modèle",
+    "newRegions": "Nouvelles zones de texte",
+    "newRegionsDescription": "Uniquement les zones de texte dessinées, pas encore reconnues ni traduites. Ignore la détection.",
     "notSet": "Non défini",
     "output": "Sortie",
     "pipelineStages": "Étapes du pipeline",
@@ -138,6 +140,7 @@
     "runProcessing": "Lancer le traitement",
     "scope": "Portée",
     "scopeShort": {
+      "new-regions": "Nouvelles",
       "page": "Page",
       "project": "Projet",
       "selected-pages": "Sélection"
@@ -509,7 +512,8 @@
     "pan": "Déplacer",
     "remove": "Retirer",
     "select": "Sélection",
-    "text": "Texte"
+    "text": "Texte",
+    "text_region": "Zone de texte"
   },
   "updater": {
     "available": {

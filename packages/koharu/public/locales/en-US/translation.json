@@ -130,6 +130,8 @@
     "entireProjectDescription": "Process every page in this project.",
     "model": "Model",
     "noModel": "No model",
+    "newRegions": "New text regions",
+    "newRegionsDescription": "Only text regions you drew that are not yet recognized or translated. Skips detection.",
     "notSet": "Not set",
     "output": "Output",
     "pipelineStages": "Pipeline stages",
@@ -138,6 +140,7 @@
     "runProcessing": "Run processing",
     "scope": "Scope",
     "scopeShort": {
+      "new-regions": "New regions",
       "page": "Page",
       "project": "Project",
       "selected-pages": "Selection"
@@ -509,7 +512,8 @@
     "pan": "Pan",
     "remove": "Remove",
     "select": "Select",
-    "text": "Text"
+    "text": "Text",
+    "text_region": "Text region"
   },
   "updater": {
     "available": {
