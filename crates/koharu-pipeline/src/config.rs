@@ -14,6 +14,9 @@ pub struct PipelineConfig {
     pub ocr: OcrModel,
     pub translation: TranslationConfig,
     pub inpainting: InpaintingModel,
+    /// The Remove brush's model. It is chosen apart from the inpainting stage so
+    /// switching it never changes automatic cleanup.
+    pub remove: InpaintingModel,
     /// Settings for every model are kept independently of the active model.
     /// The active stage fields above only select which profile is used.
     pub processor: ProcessorConfig,
@@ -26,6 +29,7 @@ struct PipelineFile {
     ocr: ModelSelection,
     translation: TranslationConfig,
     inpainting: ModelSelection,
+    remove: ModelSelection,
     #[serde(default)]
     processor: ProcessorConfig,
 }
@@ -41,6 +45,9 @@ impl Default for PipelineFile {
             },
             translation: TranslationConfig::default(),
             inpainting: ModelSelection {
+                model: "lama".to_owned(),
+            },
+            remove: ModelSelection {
                 model: "lama".to_owned(),
             },
             processor: ProcessorConfig::default(),
@@ -68,33 +75,29 @@ impl Serialize for PipelineConfig {
             OcrModel::BaberuOcr => "baberu-ocr",
             OcrModel::HayaiOcr => "hayai-ocr",
         };
-        let inpainting = match &self.inpainting {
-            InpaintingModel::LaMa {} => "lama",
-            InpaintingModel::AotInpainting {} => "aot-inpainting",
-            InpaintingModel::Flux2Klein(_) => "flux2-klein",
-            InpaintingModel::Flux3Klein(_) => "flux3-klein",
-            InpaintingModel::MiniMaxH3Image(_) => "minimax-h3-image",
-            InpaintingModel::RoremMixed(_) => "rorem-mixed",
-        };
         let mut processor = self.processor.clone();
         let DetectionModel::KoharuLayoutRFDetrSeg2XL(config) = &self.detection;
         processor
             .koharu_layout_rfdetr_seg_2xl
             .get_or_insert_with(|| config.clone());
-        match &self.inpainting {
-            InpaintingModel::Flux2Klein(config) => {
-                processor.flux2_klein.get_or_insert_with(|| config.clone());
+        for model in [&self.inpainting, &self.remove] {
+            match model {
+                InpaintingModel::Flux2Klein(config) => {
+                    processor.flux2_klein.get_or_insert_with(|| config.clone());
+                }
+                InpaintingModel::Flux3Klein(config) => {
+                    processor.flux3_klein.get_or_insert_with(|| config.clone());
+                }
+                InpaintingModel::MiniMaxH3Image(config) => {
+                    processor
+                        .minimax_h3_image
+                        .get_or_insert_with(|| config.clone());
+                }
+                InpaintingModel::RoremMixed(config) => {
+                    processor.rorem_mixed.get_or_insert_with(|| config.clone());
+                }
+                InpaintingModel::LaMa {} | InpaintingModel::AotInpainting {} => {}
             }
-            InpaintingModel::Flux3Klein(config) => {
-                processor.flux3_klein.get_or_insert_with(|| config.clone());
-            }
-            InpaintingModel::MiniMaxH3Image(config) => {
-                processor.minimax_h3_image.get_or_insert_with(|| config.clone());
-            }
-            InpaintingModel::RoremMixed(config) => {
-                processor.rorem_mixed.get_or_insert_with(|| config.clone());
-            }
-            InpaintingModel::LaMa {} | InpaintingModel::AotInpainting {} => {}
         }
         PipelineFile {
             detection: ModelSelection {
@@ -105,7 +108,10 @@ impl Serialize for PipelineConfig {
             },
             translation: self.translation.clone(),
             inpainting: ModelSelection {
-                model: inpainting.to_owned(),
+                model: self.inpainting.name().to_owned(),
+            },
+            remove: ModelSelection {
+                model: self.remove.name().to_owned(),
             },
             processor,
         }
@@ -143,35 +149,16 @@ impl<'de> Deserialize<'de> for PipelineConfig {
                 )));
             }
         };
-        let inpainting = match file.inpainting.model.as_str() {
-            "lama" => InpaintingModel::LaMa {},
-            "aot-inpainting" => InpaintingModel::AotInpainting {},
-            "flux2-klein" => {
-                InpaintingModel::Flux2Klein(file.processor.flux2_klein.clone().unwrap_or_default())
-            }
-            "flux3-klein" => {
-                InpaintingModel::Flux3Klein(file.processor.flux3_klein.clone().unwrap_or_default())
-            }
-            "minimax-h3-image" => InpaintingModel::MiniMaxH3Image(
-                file.processor
-                    .minimax_h3_image
-                    .clone()
-                    .unwrap_or_default(),
-            ),
-            "rorem-mixed" => {
-                InpaintingModel::RoremMixed(file.processor.rorem_mixed.clone().unwrap_or_default())
-            }
-            model => {
-                return Err(serde::de::Error::custom(format!(
-                    "unsupported inpainting model {model}"
-                )));
-            }
-        };
+        let inpainting = InpaintingModel::from_profile(&file.inpainting.model, &file.processor)
+            .map_err(serde::de::Error::custom)?;
+        let remove = InpaintingModel::from_profile(&file.remove.model, &file.processor)
+            .map_err(serde::de::Error::custom)?;
         Ok(Self {
             detection,
             ocr,
             translation: file.translation,
             inpainting,
+            remove,
             processor: file.processor,
         })
     }
@@ -186,6 +173,7 @@ impl Default for PipelineConfig {
             ocr: OcrModel::PaddleOcrVl1_6,
             translation: TranslationConfig::default(),
             inpainting: InpaintingModel::LaMa {},
+            remove: InpaintingModel::LaMa {},
             processor: ProcessorConfig::default(),
         }
     }
@@ -230,7 +218,15 @@ impl PipelineConfig {
     }
 
     pub fn inpainting(&self) -> Result<InpaintingModel> {
-        match &self.inpainting {
+        self.inpainting_profile(&self.inpainting)
+    }
+
+    pub fn remove(&self) -> Result<InpaintingModel> {
+        self.inpainting_profile(&self.remove)
+    }
+
+    fn inpainting_profile(&self, model: &InpaintingModel) -> Result<InpaintingModel> {
+        match model {
             InpaintingModel::LaMa {} => Ok(InpaintingModel::LaMa {}),
             InpaintingModel::AotInpainting {} => Ok(InpaintingModel::AotInpainting {}),
             InpaintingModel::Flux2Klein(config) => Ok(InpaintingModel::Flux2Klein(
@@ -263,6 +259,7 @@ impl PipelineConfig {
     pub fn validate(&self) -> Result<()> {
         let _ = self.detection()?;
         let _ = self.inpainting()?;
+        let _ = self.remove()?;
         if !matches!(
             self.ocr,
             OcrModel::PaddleOcrVl1_6
@@ -326,6 +323,33 @@ pub enum InpaintingModel {
     MiniMaxH3Image(MiniMaxH3ImageConfig),
     #[serde(rename = "rorem-mixed")]
     RoremMixed(RoremMixedConfig),
+}
+
+impl InpaintingModel {
+    fn name(&self) -> &'static str {
+        match self {
+            Self::LaMa {} => "lama",
+            Self::AotInpainting {} => "aot-inpainting",
+            Self::Flux2Klein(_) => "flux2-klein",
+            Self::Flux3Klein(_) => "flux3-klein",
+            Self::MiniMaxH3Image(_) => "minimax-h3-image",
+            Self::RoremMixed(_) => "rorem-mixed",
+        }
+    }
+
+    fn from_profile(name: &str, processor: &ProcessorConfig) -> std::result::Result<Self, String> {
+        Ok(match name {
+            "lama" => Self::LaMa {},
+            "aot-inpainting" => Self::AotInpainting {},
+            "flux2-klein" => Self::Flux2Klein(processor.flux2_klein.clone().unwrap_or_default()),
+            "flux3-klein" => Self::Flux3Klein(processor.flux3_klein.clone().unwrap_or_default()),
+            "minimax-h3-image" => {
+                Self::MiniMaxH3Image(processor.minimax_h3_image.clone().unwrap_or_default())
+            }
+            "rorem-mixed" => Self::RoremMixed(processor.rorem_mixed.clone().unwrap_or_default()),
+            model => return Err(format!("unsupported inpainting model {model}")),
+        })
+    }
 }
 
 #[cfg(test)]
@@ -480,6 +504,7 @@ mod tests {
             inpainting: InpaintingModel::Flux2Klein(Flux2KleinConfig {
                 prompt: "Keep the line art.".to_owned(),
             }),
+            remove: InpaintingModel::LaMa {},
             processor: ProcessorConfig::default(),
         };
         let document = toml::to_string(&config).unwrap();

@@ -36,7 +36,7 @@ impl StageRunner {
     pub(crate) async fn run(&self, job: StageJob) -> StageCompletion {
         let started = Instant::now();
         let page = job.input.page();
-        let model = self.stages.model(job.stage).to_owned();
+        let model = self.stages.model(job.stage, &job.input).to_owned();
         let outcome = self.run_with_recovery(&job, &model).await;
         StageCompletion {
             page,
@@ -63,6 +63,7 @@ impl StageRunner {
                     kind: ErrorKind::Processing,
                     error,
                 },
+                &job.input,
             )
         })?;
         if skip {
@@ -76,18 +77,21 @@ impl StageRunner {
         let failure = match first {
             Ok(outcome) => return Ok(outcome),
             Err(failure) if is_out_of_memory(&failure.error) && !job.stop.stopped() => failure,
-            Err(failure) => return Err(self.stage_error(job.stage, model, failure)),
+            Err(failure) => return Err(self.stage_error(job.stage, model, failure, &job.input)),
         };
 
         drop(permit);
         tracing::warn!(stage = %job.stage, page = %job.input.page(), error = %failure.error, "retrying stage after memory pressure");
-        let _permit = self.accelerator.recover(job.stage, &self.stages).await;
+        let _permit = self
+            .accelerator
+            .recover(job.stage, &job.input, &self.stages)
+            .await;
         if job.stop.stopped() {
             return Ok(StageOutcome::Stopped);
         }
         match self.load_and_process(job, model).await {
             Ok(outcome) => Ok(outcome),
-            Err(failure) => Err(self.stage_error(job.stage, model, failure)),
+            Err(failure) => Err(self.stage_error(job.stage, model, failure, &job.input)),
         }
     }
 
@@ -105,7 +109,7 @@ impl StageRunner {
             },
         );
         self.stages
-            .load(job.stage)
+            .load(job.stage, &job.input)
             .await
             .map_err(|error| AttemptFailure {
                 kind: ErrorKind::ModelLoad,
@@ -138,8 +142,14 @@ impl StageRunner {
             })
     }
 
-    fn stage_error(&self, stage: Stage, model: &str, failure: AttemptFailure) -> PipelineError {
-        self.stages.unload(stage);
+    fn stage_error(
+        &self,
+        stage: Stage,
+        model: &str,
+        failure: AttemptFailure,
+        input: &StageInput,
+    ) -> PipelineError {
+        self.stages.unload(stage, input);
         let message = match failure.kind {
             ErrorKind::ModelLoad => format!("failed to load {model}"),
             _ => format!("{model} failed"),

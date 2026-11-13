@@ -80,6 +80,9 @@ pub(crate) struct Stages {
     ocr: ocr::Processor,
     translation: translation::Processor,
     inpainting: inpainting::Processor,
+    /// The Remove brush's processor, absent when it would load the same model as
+    /// the inpainting stage so one model is never resident twice.
+    remove: Option<inpainting::Processor>,
 }
 
 impl Stages {
@@ -88,41 +91,81 @@ impl Stages {
         translator: koharu_translator::Translator,
         device: &koharu_ml::Device,
     ) -> Result<Self> {
+        let inpainting = config.inpainting()?;
+        let remove = config.remove()?;
+        let remove = (remove != inpainting)
+            .then(|| inpainting::Processor::new(remove, device.clone()))
+            .transpose()?;
         Ok(Self {
             detection: detection::Processor::new(config.detection()?, device.clone()),
             ocr: ocr::Processor::new(config.ocr.clone(), device.clone()),
             translation: translation::Processor::new(config.translation.clone(), translator),
-            inpainting: inpainting::Processor::new(config.inpainting()?, device.clone())?,
+            inpainting: inpainting::Processor::new(inpainting, device.clone())?,
+            remove,
         })
     }
 
-    fn processor(&self, stage: Stage) -> &dyn StageProcessor {
+    /// A hand-painted mask comes from the Remove brush and runs its model.
+    fn processor(&self, stage: Stage, input: &StageInput) -> &dyn StageProcessor {
         match stage {
             Stage::Detection => &self.detection,
             Stage::Ocr => &self.ocr,
             Stage::Translation => &self.translation,
-            Stage::Inpainting => &self.inpainting,
+            Stage::Inpainting => match &self.remove {
+                Some(remove) if input.inpainting_mask.is_some() => remove,
+                _ => &self.inpainting,
+            },
         }
     }
 
-    pub(crate) fn model(&self, stage: Stage) -> &'static str {
-        self.processor(stage).model()
+    fn processors(&self) -> impl Iterator<Item = &dyn StageProcessor> {
+        [
+            Some(&self.detection as &dyn StageProcessor),
+            Some(&self.ocr),
+            Some(&self.translation),
+            Some(&self.inpainting),
+            self.remove
+                .as_ref()
+                .map(|remove| remove as &dyn StageProcessor),
+        ]
+        .into_iter()
+        .flatten()
+    }
+
+    pub(crate) fn model(&self, stage: Stage, input: &StageInput) -> &'static str {
+        self.processor(stage, input).model()
     }
 
     pub(crate) fn skip(&self, stage: Stage, input: &StageInput) -> Result<bool> {
-        self.processor(stage).skip(input)
+        self.processor(stage, input).skip(input)
     }
 
-    pub(crate) async fn load(&self, stage: Stage) -> Result<()> {
-        self.processor(stage).load().await
+    pub(crate) async fn load(&self, stage: Stage, input: &StageInput) -> Result<()> {
+        self.processor(stage, input).load().await
     }
 
     pub(crate) async fn process(&self, stage: Stage, input: StageInput) -> Result<Patch> {
-        self.processor(stage).process(input).await
+        self.processor(stage, &input).process(input).await
     }
 
-    pub(crate) fn unload(&self, stage: Stage) -> bool {
-        self.processor(stage).unload()
+    pub(crate) fn unload(&self, stage: Stage, input: &StageInput) -> bool {
+        self.processor(stage, input).unload()
+    }
+
+    /// Unloads every model except the one this stage input runs.
+    pub(crate) fn unload_others(&self, stage: Stage, input: &StageInput) -> bool {
+        let keep = self.processor(stage, input);
+        let mut unloaded = false;
+        for processor in self.processors() {
+            if !std::ptr::addr_eq(processor, keep) && processor.unload() {
+                tracing::debug!(
+                    model = processor.model(),
+                    "unloaded model while recovering from memory pressure"
+                );
+                unloaded = true;
+            }
+        }
+        unloaded
     }
 }
 
@@ -153,21 +196,48 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn registry_contains_every_stage() {
+    async fn registry_contains_every_stage_and_routes_remove_masks() {
         let translator = koharu_translator::Translator::from_config(
             koharu_ml::Device::cpu(),
             koharu_config::Config::memory(koharu_translator::ProvidersConfig::default()),
         )
         .unwrap();
         let stages = Stages::new(
-            &PipelineConfig::default(),
+            &PipelineConfig {
+                remove: crate::InpaintingModel::AotInpainting {},
+                ..PipelineConfig::default()
+            },
             translator,
             &koharu_ml::Device::cpu(),
         )
         .unwrap();
+        let mut session = koharu_scene::Session::memory().await.unwrap();
+        let mut setup = session.snapshot().edit();
+        let page = setup
+            .add_page(
+                koharu_scene::PageDraft::new("page", 1.0, 1.0),
+                koharu_scene::At::End,
+            )
+            .unwrap();
+        session.commit(setup.finish().unwrap()).await.unwrap();
+        let input = |mask: Option<InpaintingMask>| {
+            StageInput::new(
+                session.snapshot(),
+                page,
+                None,
+                None,
+                Arc::new(ImageCache::default()),
+                mask,
+            )
+        };
+        let pipeline = input(None);
+        let remove = input(Some(InpaintingMask {
+            page,
+            png: Arc::from([]),
+        }));
 
         assert_eq!(
-            Stage::ALL.map(|stage| stages.model(stage)),
+            Stage::ALL.map(|stage| stages.model(stage, &pipeline)),
             [
                 "koharu-layout-rfdetr-seg-2xl",
                 "paddleocr-vl-1.6",
@@ -175,6 +245,7 @@ mod tests {
                 "lama",
             ]
         );
+        assert_eq!(stages.model(Stage::Inpainting, &remove), "aot-inpainting");
     }
 
     #[tokio::test]

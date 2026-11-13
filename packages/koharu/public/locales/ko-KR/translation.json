@@ -511,6 +511,7 @@
     "increaseBrushSize": "브러시 크기 늘리기",
     "pan": "이동",
     "remove": "제거",
+    "removeModel": "제거 모델",
     "select": "선택",
     "text": "텍스트",
     "text_region": "텍스트 영역"

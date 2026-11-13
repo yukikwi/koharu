@@ -511,6 +511,7 @@
     "increaseBrushSize": "拿笔刷调大点",
     "pan": "平移",
     "remove": "移除",
+    "removeModel": "移除模型",
     "select": "选择",
     "text": "文本",
     "text_region": "文字区域"

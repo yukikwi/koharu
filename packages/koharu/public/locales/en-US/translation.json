@@ -511,6 +511,7 @@
     "increaseBrushSize": "Increase brush size",
     "pan": "Pan",
     "remove": "Remove",
+    "removeModel": "Remove model",
     "select": "Select",
     "text": "Text",
     "text_region": "Text region"

@@ -41,6 +41,7 @@ const preferences: Preferences = {
       instructions: null,
     },
     inpainting: { model: 'lama' },
+    remove: { model: 'lama' },
     processor: {},
   },
   providers: {

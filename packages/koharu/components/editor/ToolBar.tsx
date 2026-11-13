@@ -12,18 +12,36 @@ import {
   Sparkles,
   Type,
 } from 'lucide-react'
+import { useEffect, useState, type ReactElement, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ColorWell } from '@/components/controls/ColorWell'
+import {
+  defaultModel,
+  modelNames,
+  modelOptions,
+  type ModelName,
+} from '@/components/preferences/models'
+import { savePreferences } from '@/lib/backend'
 import { usePage } from '@/lib/queries'
 import {
   isBrushTool,
   maxBrushDiameter,
   MIN_BRUSH_DIAMETER,
+  receivePreferences,
   useKoharuStore,
   type CanvasTool,
 } from '@/lib/store'
 import { Button } from '@koharu/ui/components/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@koharu/ui/components/dropdown-menu'
 import {
   NumberField,
   NumberFieldDecrement,
@@ -64,33 +82,43 @@ export function ToolBar() {
   return (
     <aside className='absolute top-3 left-3 z-20 flex w-11 flex-col rounded-2xl border border-border bg-[var(--surface-floating)] p-1 shadow-[var(--shadow-toolrail)]'>
       <div className='flex flex-col items-center py-0.5'>
-        {tools.map(([tool, Icon], index) => (
-          <div key={tool} className='contents'>
-            {index === tools.length - 1 && <span className='my-1 h-px w-5 bg-border' />}
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    type='button'
-                    variant='ghost'
-                    size='icon'
-                    disabled={!page}
-                    aria-label={t(`tools.${tool}`)}
-                    data-active={active === tool}
-                    className='relative text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground disabled:opacity-30 data-[active=true]:bg-accent data-[active=true]:text-accent-foreground'
-                    onClick={() => setTool(tool)}
-                  />
-                }
-              >
-                <Icon className='size-4' />
-              </TooltipTrigger>
-              <TooltipContent side='right'>
-                {t(`tools.${tool}`)}
-                <span className='ml-2 opacity-60'>{shortcuts[tool].toUpperCase()}</span>
-              </TooltipContent>
-            </Tooltip>
-          </div>
-        ))}
+        {tools.map(([tool, Icon], index) => {
+          const button = (
+            <Button
+              type='button'
+              variant='ghost'
+              size='icon'
+              disabled={!page}
+              aria-label={t(`tools.${tool}`)}
+              data-active={active === tool}
+              className='relative text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground disabled:opacity-30 data-[active=true]:bg-accent data-[active=true]:text-accent-foreground'
+              onClick={() => setTool(tool)}
+            />
+          )
+          const tooltip = (
+            <TooltipContent side='right'>
+              {t(`tools.${tool}`)}
+              <span className='ml-2 opacity-60'>{shortcuts[tool].toUpperCase()}</span>
+            </TooltipContent>
+          )
+          return (
+            <div key={tool} className='contents'>
+              {index === tools.length - 1 && <span className='my-1 h-px w-5 bg-border' />}
+              {tool === 'remove' ? (
+                <RemoveModelMenu button={button} tooltip={tooltip}>
+                  <Icon className='size-4' />
+                </RemoveModelMenu>
+              ) : (
+                <Tooltip>
+                  <TooltipTrigger render={button}>
+                    <Icon className='size-4' />
+                  </TooltipTrigger>
+                  {tooltip}
+                </Tooltip>
+              )}
+            </div>
+          )
+        })}
       </div>
 
       {hasBrush && (
@@ -105,6 +133,78 @@ export function ToolBar() {
         </div>
       )}
     </aside>
+  )
+}
+
+const REMOVE_MENU_HIDE_DELAY_MS = 3000
+
+/// Clicking Remove also offers its model. It is the Remove brush's own model and
+/// never changes the inpainting stage. The menu is non-modal so painting can
+/// start at once, and it hides after the pointer stays away.
+function RemoveModelMenu({
+  button,
+  tooltip,
+  children,
+}: {
+  button: ReactElement
+  tooltip: ReactNode
+  children: ReactNode
+}) {
+  const { t } = useTranslation()
+  const preferences = useKoharuStore((state) => state.preferences)
+  const [open, setOpen] = useState(false)
+  const [hovered, setHovered] = useState(false)
+  const selected = preferences?.pipeline.remove.model ?? null
+
+  useEffect(() => {
+    if (!open || hovered) return
+    const timer = window.setTimeout(() => setOpen(false), REMOVE_MENU_HIDE_DELAY_MS)
+    return () => window.clearTimeout(timer)
+  }, [hovered, open])
+
+  const select = (name: ModelName) => {
+    setOpen(false)
+    if (!preferences || name === selected) return
+    // Only the model is chosen here; the backend applies its saved prompt profile.
+    const remove = defaultModel(name) as typeof preferences.pipeline.remove
+    void savePreferences(
+      { ...preferences.pipeline, remove },
+      preferences.providers,
+      preferences.typesetting,
+    )
+      .then(receivePreferences)
+      .catch(() => undefined)
+  }
+
+  const hover = {
+    onPointerEnter: () => setHovered(true),
+    onPointerLeave: () => setHovered(false),
+  }
+
+  return (
+    <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>
+      <Tooltip>
+        <DropdownMenuTrigger render={<TooltipTrigger render={button} />} {...hover}>
+          {children}
+        </DropdownMenuTrigger>
+        {tooltip}
+      </Tooltip>
+      <DropdownMenuContent side='right' align='start' sideOffset={8} className='w-44' {...hover}>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className='text-[11px]'>{t('tools.removeModel')}</DropdownMenuLabel>
+          <DropdownMenuRadioGroup
+            value={selected}
+            onValueChange={(name) => select(name as ModelName)}
+          >
+            {modelOptions.inpainting.map((name) => (
+              <DropdownMenuRadioItem key={name} value={name} className='text-[11px]'>
+                {modelNames[name]}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 

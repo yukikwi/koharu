@@ -137,6 +137,7 @@ impl Arguments {
                     InpaintingModel::RoremMixed(RoremMixedConfig::default())
                 }
             },
+            remove: InpaintingModel::LaMa {},
             processor: Default::default(),
         }
     }

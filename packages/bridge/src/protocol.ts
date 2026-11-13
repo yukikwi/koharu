@@ -379,6 +379,11 @@ export type PipelineConfig = {
 	translation: TranslationConfig,
 	inpainting: InpaintingModel,
 	/**
+	 *  The Remove brush's model. It is chosen apart from the inpainting stage so
+	 *  switching it never changes automatic cleanup.
+	 */
+	remove: InpaintingModel,
+	/**
 	 *  Settings for every model are kept independently of the active model.
 	 *  The active stage fields above only select which profile is used.
 	 */

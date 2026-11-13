@@ -511,6 +511,7 @@
     "increaseBrushSize": "Aumentar tamaño del pincel",
     "pan": "Desplazar",
     "remove": "Eliminar",
+    "removeModel": "Modelo de Eliminar",
     "select": "Seleccionar",
     "text": "Texto",
     "text_region": "Región de texto"
