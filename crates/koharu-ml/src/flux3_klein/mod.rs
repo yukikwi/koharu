@@ -34,9 +34,9 @@ crate::model_repository!("black-forest-labs/FLUX.2-small-decoder" @ "a3efc24f613
 
 pub const DEFAULT_PROMPT: &str = "Remove only the text and lettering. Keep the speech bubble's flat fill colour, outline and tail exactly as they are. Fill the removed text with the surrounding bubble colour.";
 
-/// FLUX.2 Klein is calibrated for up to 1 MP; latents are 16-pixel aligned
+/// FLUX.2 Klein is calibrated for 1 MP; latents are 16-pixel aligned
 /// (8x VAE downsampling followed by 2x2 patchification into 128 channels).
-const MAX_AREA: f64 = 1024.0 * 1024.0;
+const TARGET_AREA: f64 = 1024.0 * 1024.0;
 const SIZE_MULTIPLE: u32 = 16;
 const SAMPLE_STEPS: i32 = 16;
 
@@ -160,6 +160,7 @@ impl Flux3KleinInpaint {
         );
 
         let mut output = resize_rgb(&generated, source.width(), source.height());
+        correct_color_drift(&mut output, &source, &source_mask);
         for ((pixel, original), mask) in output
             .pixels_mut()
             .zip(source.pixels())
@@ -176,18 +177,87 @@ impl Flux3KleinInpaint {
     }
 }
 
-/// Downscales crops above the calibrated area, keeping the aspect ratio.
-/// Smaller crops keep their native resolution: upscaling them only multiplies
-/// the DiT token count (doubled by the reference image) without adding detail.
+/// Scales to the calibrated area in either direction, keeping the aspect ratio.
+/// Small crops must be upscaled: at native size a manual-removal crop is only a
+/// few dozen 16-pixel tokens, the denoise mask swallows the whole bubble, and
+/// the model replaces its fill with the surrounding page colour.
 fn processing_size(width: u32, height: u32) -> (u32, u32) {
-    let scale = (MAX_AREA / (f64::from(width) * f64::from(height)))
-        .sqrt()
-        .min(1.0);
+    let scale = (TARGET_AREA / (f64::from(width) * f64::from(height))).sqrt();
     let align = |value: u32| {
         let aligned = (f64::from(value) * scale / f64::from(SIZE_MULTIPLE)).round() as u32;
         aligned.max(1) * SIZE_MULTIPLE
     };
     (align(width), align(height))
+}
+
+/// Neighbourhood used to estimate decode drift; large enough to reach unmasked
+/// pixels from the middle of a brush stroke inside a small bubble.
+const DRIFT_RADIUS: u32 = 32;
+/// Differences above this are content changes (line art, residual glyphs), not
+/// VAE colour drift, and must not tint the fill.
+const DRIFT_LIMIT: i32 = 40;
+
+/// Deliberate divergence from upstream: stable-diffusion.cpp keeps unmasked
+/// content only in latent space, so the decoded image is shifted in colour
+/// relative to the source. Compositing it pixel-exactly against the source
+/// leaves visible seams and blotches on flat bubble fills. Unmasked pixels
+/// show that shift directly, so a locally smoothed source-minus-decoded offset
+/// is added back to the generated pixels.
+fn correct_color_drift(output: &mut RgbImage, source: &RgbImage, mask: &GrayImage) {
+    let (width, height) = output.dimensions();
+    let stride = width as usize + 1;
+    // Summed-area tables of [dr, dg, db, count] over trusted unmasked pixels.
+    let mut sums = vec![[0i64; 4]; stride * (height as usize + 1)];
+    let mut total = [0i64; 4];
+    for y in 0..height {
+        let mut row = [0i64; 4];
+        for x in 0..width {
+            if mask.get_pixel(x, y).0[0] == 0 {
+                let decoded = output.get_pixel(x, y).0;
+                let original = source.get_pixel(x, y).0;
+                let diff: [i32; 3] =
+                    std::array::from_fn(|c| i32::from(original[c]) - i32::from(decoded[c]));
+                if diff.iter().all(|value| value.abs() <= DRIFT_LIMIT) {
+                    for c in 0..3 {
+                        row[c] += i64::from(diff[c]);
+                    }
+                    row[3] += 1;
+                }
+            }
+            let above = sums[y as usize * stride + x as usize + 1];
+            sums[(y as usize + 1) * stride + x as usize + 1] =
+                std::array::from_fn(|c| above[c] + row[c]);
+        }
+        for c in 0..4 {
+            total[c] += row[c];
+        }
+    }
+    if total[3] == 0 {
+        return;
+    }
+    for y in 0..height {
+        for x in 0..width {
+            if mask.get_pixel(x, y).0[0] == 0 {
+                continue;
+            }
+            let (left, top) = (
+                x.saturating_sub(DRIFT_RADIUS) as usize,
+                y.saturating_sub(DRIFT_RADIUS) as usize,
+            );
+            let right = (x + DRIFT_RADIUS + 1).min(width) as usize;
+            let bottom = (y + DRIFT_RADIUS + 1).min(height) as usize;
+            let at = |row: usize, col: usize| sums[row * stride + col];
+            let window: [i64; 4] = std::array::from_fn(|c| {
+                at(bottom, right)[c] - at(top, right)[c] - at(bottom, left)[c] + at(top, left)[c]
+            });
+            let local = if window[3] > 0 { window } else { total };
+            let pixel = output.get_pixel_mut(x, y);
+            for c in 0..3 {
+                let offset = local[c] as f64 / local[3] as f64;
+                pixel.0[c] = (f64::from(pixel.0[c]) + offset).round().clamp(0.0, 255.0) as u8;
+            }
+        }
+    }
 }
 
 fn resize_rgb(source: &RgbImage, width: u32, height: u32) -> RgbImage {
