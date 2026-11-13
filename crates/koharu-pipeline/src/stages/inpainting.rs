@@ -541,10 +541,12 @@ fn flat_fill_regions(input: &StageInput, width: u32, height: u32) -> Result<Vec<
     Ok(regions)
 }
 
-/// Detection writes the text mask from model masks, which a user-drawn text region
-/// never has, so its geometry is the mask. Detected regions are already covered.
+/// A user-drawn text region has no model mask of its own. It erases the detected
+/// text and sound-effect strokes it covers so the bubble around them survives, and
+/// only falls back to its whole geometry when detection found nothing inside it.
 fn fill_user_text_regions(
     input: &StageInput,
+    detected: &GrayImage,
     mask: &mut GrayImage,
     text_mask: &mut GrayImage,
 ) -> Result<()> {
@@ -574,8 +576,26 @@ fn fill_user_text_regions(
         if polygon.len() < 3 {
             continue;
         }
-        imageproc::drawing::draw_polygon_mut(mask, &polygon, Luma([255]));
-        imageproc::drawing::draw_polygon_mut(text_mask, &polygon, Luma([255]));
+        let mut region = GrayImage::new(mask.width(), mask.height());
+        imageproc::drawing::draw_polygon_mut(&mut region, &polygon, Luma([255]));
+        let strokes = GrayImage::from_fn(region.width(), region.height(), |x, y| {
+            Luma([region.get_pixel(x, y)[0].min(detected.get_pixel(x, y)[0])])
+        });
+        let stroke_pixels = strokes.iter().filter(|value| **value >= 127).count();
+        tracing::debug!(
+            region = %id,
+            stroke_pixels,
+            fallback = stroke_pixels == 0,
+            "user text region inpainting mask"
+        );
+        if stroke_pixels > 0 {
+            region = strokes;
+        }
+        for target in [&mut *mask, &mut *text_mask] {
+            for (target, source) in target.iter_mut().zip(region.as_raw()) {
+                *target = (*target).max(*source);
+            }
+        }
     }
     Ok(())
 }
@@ -640,27 +660,29 @@ async fn prepare(input: &StageInput) -> Result<InpaintInput> {
         }
         mask = layer;
     } else {
-        // Detected masks cover the whole page, including regions already reviewed.
-        let roles: &[&str] = if input.entities.is_some() {
-            &[]
-        } else {
-            &["text-mask", "coo-mask"]
-        };
-        for &role in roles {
-            if let Some(image) = input.images.get(&input.scene, page, role).await? {
-                let layer = image.to_luma8();
-                if layer.dimensions() != mask.dimensions() {
-                    bail!("{role} dimensions do not match page {page}");
-                }
-                for (target, source) in mask.iter_mut().zip(layer.as_raw()) {
-                    *target = (*target).max(*source);
-                }
-                if role == "text-mask" {
-                    text_mask = layer;
-                }
+        let mut detected = GrayImage::new(source.width(), source.height());
+        for role in ["text-mask", "coo-mask"] {
+            let image = input.images.get(&input.scene, page, role).await?;
+            tracing::debug!(%page, role, present = image.is_some(), "detected inpainting mask");
+            let Some(image) = image else {
+                continue;
+            };
+            let layer = image.to_luma8();
+            if layer.dimensions() != mask.dimensions() {
+                bail!("{role} dimensions do not match page {page}");
+            }
+            for (target, source) in detected.iter_mut().zip(layer.as_raw()) {
+                *target = (*target).max(*source);
+            }
+            // Detected text covers the whole page, including regions already
+            // reviewed, so an entity-scoped run leaves it alone. Sound effects stay
+            // as artwork outside user-drawn text regions.
+            if role == "text-mask" && input.entities.is_none() {
+                mask = layer.clone();
+                text_mask = layer;
             }
         }
-        fill_user_text_regions(input, &mut mask, &mut text_mask)?;
+        fill_user_text_regions(input, &detected, &mut mask, &mut text_mask)?;
     }
     if let Some(bounds) = input.region {
         for (x, y, pixel) in mask.enumerate_pixels_mut() {

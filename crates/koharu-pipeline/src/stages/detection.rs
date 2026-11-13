@@ -1361,7 +1361,19 @@ async fn write_masks(
     detections: &[KoharuLayoutDetection],
     size: ImageSize,
 ) -> Result<()> {
-    write_mask(input, edit, page, detections, size).await?;
+    write_mask(input, edit, page, detections, size, "text", "text-mask").await?;
+    // Page inpainting keeps sound effects as artwork. Only user-drawn text regions
+    // consult this mask, to erase the strokes they cover instead of the whole box.
+    write_mask(
+        input,
+        edit,
+        page,
+        detections,
+        size,
+        "onomatopoeia",
+        "coo-mask",
+    )
+    .await?;
     edit.remove_asset(page, &AssetRole::new("bubble-mask")?)?;
     Ok(())
 }
@@ -1372,17 +1384,19 @@ async fn write_mask(
     page: EntityId,
     detections: &[KoharuLayoutDetection],
     size: ImageSize,
+    label: &str,
+    role: &str,
 ) -> Result<()> {
     let mut mask = if size.width > 0 && size.height > 0 {
         let radius = ((size.width.max(size.height) as f32 / 1024.0) * 6.0)
             .round()
             .clamp(1.0, 255.0) as u8;
-        closed_mask_for(detections, "text", size, radius)
+        closed_mask_for(detections, label, size, radius)
     } else {
-        mask_for(detections, "text", size)
+        mask_for(detections, label, size)
     };
     if let Some(bounds) = input.region {
-        preserve_mask_outside_region(input, page, "text-mask", bounds, &mut mask).await?;
+        preserve_mask_outside_region(input, page, role, bounds, &mut mask).await?;
     }
     let mut bytes = Cursor::new(Vec::new());
     PngEncoder::new_with_quality(&mut bytes, CompressionType::Fast, FilterType::NoFilter)
@@ -1394,7 +1408,7 @@ async fn write_mask(
         )?;
     edit.set_asset(
         page,
-        &AssetRole::new("text-mask")?,
+        &AssetRole::new(role)?,
         AssetInput::new(
             Arc::<[u8]>::from(bytes.into_inner()),
             "image/png",
