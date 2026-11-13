@@ -29,7 +29,8 @@ pub use resources::{DeviceResources, ResourceSnapshot};
 pub use scope::{Bounds, Scope};
 pub use stage::Stage;
 pub use stages::{
-    Flux2KleinConfig, KoharuLayoutRFDetrSeg2XLConfig, MiniMaxH3ImageConfig, RoremMixedConfig,
+    Flux2KleinConfig, Flux3KleinConfig, KoharuLayoutRFDetrSeg2XLConfig, MiniMaxH3ImageConfig,
+    RoremMixedConfig,
 };
 
 use images::ImageCache;

@@ -14,6 +14,7 @@ use imageproc::region_labelling::{Connectivity, connected_components};
 use koharu_ml::{
     aot_inpainting::AotInpainting,
     flux2_klein::{Flux2KleinInpaint, Flux2KleinInpaintOptions},
+    flux3_klein::{Flux3KleinInpaint, Flux3KleinInpaintOptions},
     lama::{InpaintRequest, LaMa},
     minimax_h3_image::{MiniMaxH3ImageInpaint, MiniMaxH3ImageInpaintOptions},
     rorem_mixed::{DEFAULT_NEGATIVE_PROMPT, DEFAULT_PROMPT, RoremMixed, RoremMixedOptions},
@@ -40,6 +41,20 @@ impl Default for Flux2KleinConfig {
     fn default() -> Self {
         Self {
             prompt: "Remove the text and reconstruct the background.".to_owned(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
+#[serde(default)]
+pub struct Flux3KleinConfig {
+    pub prompt: String,
+}
+
+impl Default for Flux3KleinConfig {
+    fn default() -> Self {
+        Self {
+            prompt: koharu_ml::flux3_klein::DEFAULT_PROMPT.to_owned(),
         }
     }
 }
@@ -90,6 +105,12 @@ impl Processor {
                     "FLUX.2 prompt contains NUL"
                 );
             }
+            InpaintingModel::Flux3Klein(settings) => {
+                ensure!(
+                    !settings.prompt.contains('\0'),
+                    "FLUX.3 prompt contains NUL"
+                );
+            }
             InpaintingModel::MiniMaxH3Image(settings) => {
                 ensure!(
                     !settings.prompt.contains('\0'),
@@ -119,6 +140,7 @@ impl StageProcessor for Processor {
             InpaintingModel::LaMa {} => "lama",
             InpaintingModel::AotInpainting {} => "aot-inpainting",
             InpaintingModel::Flux2Klein(_) => "flux2-klein",
+            InpaintingModel::Flux3Klein(_) => "flux3-klein",
             InpaintingModel::MiniMaxH3Image(_) => "minimax-h3-image",
             InpaintingModel::RoremMixed(_) => "rorem-mixed",
         }
@@ -170,6 +192,10 @@ enum Model {
         model: Arc<Mutex<Flux2KleinInpaint>>,
         config: Flux2KleinConfig,
     },
+    Flux3 {
+        model: Arc<Mutex<Flux3KleinInpaint>>,
+        config: Flux3KleinConfig,
+    },
     MiniMax {
         model: Arc<Mutex<MiniMaxH3ImageInpaint>>,
         config: MiniMaxH3ImageConfig,
@@ -191,6 +217,10 @@ impl Model {
             )))),
             InpaintingModel::Flux2Klein(config) => Ok(Self::Flux {
                 model: Arc::new(Mutex::new(Flux2KleinInpaint::load(device).await?)),
+                config: config.clone(),
+            }),
+            InpaintingModel::Flux3Klein(config) => Ok(Self::Flux3 {
+                model: Arc::new(Mutex::new(Flux3KleinInpaint::load(device).await?)),
                 config: config.clone(),
             }),
             InpaintingModel::MiniMaxH3Image(config) => Ok(Self::MiniMax {
@@ -281,6 +311,33 @@ impl Model {
                                     None,
                                     &DynamicImage::ImageLuma8(mask.clone()),
                                     &Flux2KleinInpaintOptions::default(),
+                                )
+                            },
+                        )
+                    })
+                    .await?,
+                )
+            }
+            Self::Flux3 { model, config } => {
+                let model = model.clone();
+                let config = config.clone();
+                (
+                    "flux3-klein",
+                    tokio_rayon::spawn(move || -> Result<DynamicImage> {
+                        let model = model
+                            .lock()
+                            .map_err(|_| anyhow!("FLUX.3 Klein model lock is poisoned"))?;
+                        inpaint_tiled(
+                            &prepared.image,
+                            &prepared.mask,
+                            &prepared.text_mask,
+                            &prepared.flat_fill_regions,
+                            |image, mask| {
+                                model.inference(
+                                    &config.prompt,
+                                    image,
+                                    &DynamicImage::ImageLuma8(mask.clone()),
+                                    &Flux3KleinInpaintOptions::default(),
                                 )
                             },
                         )
