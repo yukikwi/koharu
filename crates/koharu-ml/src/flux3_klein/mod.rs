@@ -32,9 +32,9 @@ crate::model_repository!("black-forest-labs/FLUX.2-small-decoder" @ "a3efc24f613
 
 pub const DEFAULT_PROMPT: &str = "Remove only the text and lettering. Keep the speech bubble's flat fill colour, outline and tail exactly as they are. Fill the removed text with the surrounding bubble colour.";
 
-/// FLUX.2 Klein is calibrated for 1 MP; latents are 16-pixel aligned
+/// FLUX.2 Klein is calibrated for up to 1 MP; latents are 16-pixel aligned
 /// (8x VAE downsampling followed by 2x2 patchification into 128 channels).
-const TARGET_AREA: f64 = 1024.0 * 1024.0;
+const MAX_AREA: f64 = 1024.0 * 1024.0;
 const SIZE_MULTIPLE: u32 = 16;
 const SAMPLE_STEPS: i32 = 16;
 
@@ -168,9 +168,13 @@ impl Flux3KleinInpaint {
     }
 }
 
-/// Scales to the calibrated area in either direction, keeping the aspect ratio.
+/// Downscales crops above the calibrated area, keeping the aspect ratio.
+/// Smaller crops keep their native resolution: upscaling them only multiplies
+/// the DiT token count (doubled by the reference image) without adding detail.
 fn processing_size(width: u32, height: u32) -> (u32, u32) {
-    let scale = (TARGET_AREA / (f64::from(width) * f64::from(height))).sqrt();
+    let scale = (MAX_AREA / (f64::from(width) * f64::from(height)))
+        .sqrt()
+        .min(1.0);
     let align = |value: u32| {
         let aligned = (f64::from(value) * scale / f64::from(SIZE_MULTIPLE)).round() as u32;
         aligned.max(1) * SIZE_MULTIPLE
