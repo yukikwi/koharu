@@ -14,7 +14,9 @@ use std::time::Instant;
 use anyhow::{Context, Result, ensure};
 use fast_image_resize::{FilterType, ResizeAlg, ResizeOptions, Resizer};
 use image::{DynamicImage, GrayImage, Luma, RgbImage};
-use koharu_diffusion::{GuidanceParams, ImageGenerationParams, SampleMethod, SampleParams};
+use koharu_diffusion::{
+    CacheMode, CacheParams, GuidanceParams, ImageGenerationParams, SampleMethod, SampleParams,
+};
 
 use self::model::{Model, ModelPaths};
 
@@ -137,6 +139,12 @@ impl Flux3KleinInpaint {
                     sample_method: SampleMethod::Euler,
                     sample_steps: SAMPLE_STEPS,
                     ..SampleParams::default()
+                },
+                // EasyCache reuses the DiT output on steps whose input barely
+                // changes; the unset threshold selects upstream's DiT default.
+                cache: CacheParams {
+                    mode: CacheMode::EasyCache,
+                    ..CacheParams::default()
                 },
                 strength: 1.0,
                 seed: options.seed,
