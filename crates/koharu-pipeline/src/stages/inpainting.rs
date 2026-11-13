@@ -21,7 +21,7 @@ use koharu_ml::{
 };
 use koharu_scene::{
     AssetInput, AssetMetadata, AssetRole, At, BubbleRegion, EntityOrigin, Geometry, Origin,
-    RasterLayer, RasterLayerKind, Region, RegionSpec,
+    RasterLayer, RasterLayerKind, Region, RegionSpec, TextRegion,
 };
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -147,7 +147,7 @@ impl StageProcessor for Processor {
     }
 
     fn skip(&self, input: &StageInput) -> Result<bool> {
-        if input.inpainting_mask.is_some() {
+        if input.incremental() {
             return Ok(false);
         }
         let source = AssetRole::new("source")?;
@@ -417,7 +417,7 @@ impl Model {
         if image.dimensions() != original.dimensions() || image.dimensions() != mask.dimensions() {
             bail!("inpainted image dimensions do not match page {page}");
         }
-        let mut overlay = if manual {
+        let mut overlay = if input.incremental() {
             cleanup.unwrap_or_else(|| RgbaImage::new(image.width(), image.height()))
         } else {
             RgbaImage::new(image.width(), image.height())
@@ -531,6 +531,45 @@ fn flat_fill_regions(input: &StageInput, width: u32, height: u32) -> Result<Vec<
     Ok(regions)
 }
 
+/// Detection writes the text mask from model masks, which a user-drawn text region
+/// never has, so its geometry is the mask. Detected regions are already covered.
+fn fill_user_text_regions(
+    input: &StageInput,
+    mask: &mut GrayImage,
+    text_mask: &mut GrayImage,
+) -> Result<()> {
+    for entity in input.scene.descendants(input.page)? {
+        let id = entity.id();
+        if !input.contains_entity(id)?
+            || !input.scene.component::<Region>(id)?.is_some_and(|region| {
+                region.origin == Origin::User && region.kind == TextRegion::kind()
+            })
+        {
+            continue;
+        }
+        let Some(geometry) = input.scene.component::<Geometry>(id)? else {
+            continue;
+        };
+        let mut polygon = Vec::<imageproc::point::Point<i32>>::new();
+        for point in &geometry.points {
+            let point =
+                imageproc::point::Point::new(point.x.round() as i32, point.y.round() as i32);
+            if polygon.last() != Some(&point) {
+                polygon.push(point);
+            }
+        }
+        if polygon.len() > 1 && polygon.first() == polygon.last() {
+            polygon.pop();
+        }
+        if polygon.len() < 3 {
+            continue;
+        }
+        imageproc::drawing::draw_polygon_mut(mask, &polygon, Luma([255]));
+        imageproc::drawing::draw_polygon_mut(text_mask, &polygon, Luma([255]));
+    }
+    Ok(())
+}
+
 struct InpaintInput {
     image: Arc<DynamicImage>,
     original: Arc<DynamicImage>,
@@ -571,7 +610,7 @@ async fn prepare(input: &StageInput) -> Result<InpaintInput> {
     {
         bail!("cleanup layer dimensions do not match page {page}");
     }
-    let source = if input.inpainting_mask.is_some() {
+    let source = if input.incremental() {
         if let Some(cleanup) = cleanup.as_ref() {
             let mut composite = original.to_rgba8();
             image::imageops::overlay(&mut composite, cleanup, 0, 0);
@@ -591,7 +630,13 @@ async fn prepare(input: &StageInput) -> Result<InpaintInput> {
         }
         mask = layer;
     } else {
-        for role in ["text-mask", "coo-mask"] {
+        // Detected masks cover the whole page, including regions already reviewed.
+        let roles: &[&str] = if input.entities.is_some() {
+            &[]
+        } else {
+            &["text-mask", "coo-mask"]
+        };
+        for &role in roles {
             if let Some(image) = input.images.get(&input.scene, page, role).await? {
                 let layer = image.to_luma8();
                 if layer.dimensions() != mask.dimensions() {
@@ -605,6 +650,7 @@ async fn prepare(input: &StageInput) -> Result<InpaintInput> {
                 }
             }
         }
+        fill_user_text_regions(input, &mut mask, &mut text_mask)?;
     }
     if let Some(bounds) = input.region {
         for (x, y, pixel) in mask.enumerate_pixels_mut() {

@@ -5,7 +5,8 @@ use std::{
 
 use anyhow::{Result, bail};
 use koharu_scene::{
-    EntityId, FitsTo, FlowsIn, Geometry, Inside, Presents, RecognizedFrom, RelationSpec, Snapshot,
+    EntityId, FitsTo, FlowsIn, Geometry, Inside, Origin, Presents, RecognizedFrom, Region,
+    RegionSpec, RelationSpec, Snapshot, SourceText, TextRegion, Translation,
 };
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -57,6 +58,9 @@ pub enum Scope {
         bounds: Bounds,
     },
     Entities(Vec<EntityId>),
+    /// User-drawn text regions on these pages that still lack recognized or translated
+    /// text, so reviewed regions are never touched.
+    NewRegions(Vec<EntityId>),
 }
 
 #[derive(Clone, Debug)]
@@ -68,12 +72,10 @@ pub(crate) struct NormalizedScope {
 
 impl NormalizedScope {
     pub(crate) fn new(snapshot: &Snapshot, scope: &Scope, stages: &[Stage]) -> Result<Self> {
-        if matches!(scope, Scope::Entities(_))
-            && stages
-                .iter()
-                .any(|stage| matches!(stage, Stage::Detection | Stage::Inpainting))
+        if matches!(scope, Scope::Entities(_) | Scope::NewRegions(_))
+            && stages.contains(&Stage::Detection)
         {
-            bail!("detection and inpainting do not support entity-only scope");
+            bail!("detection does not support entity-only scope");
         }
 
         match scope {
@@ -108,6 +110,37 @@ impl NormalizedScope {
                     pages: Arc::from([*page]),
                     entities: None,
                     region: Some((*page, *bounds)),
+                })
+            }
+            Scope::NewRegions(requested) => {
+                if requested.is_empty() {
+                    bail!("page scope is empty");
+                }
+                let requested = requested.iter().copied().collect::<BTreeSet<_>>();
+                let mut page_set = BTreeSet::new();
+                let mut regions = BTreeSet::new();
+                for page in &requested {
+                    snapshot.page(*page)?;
+                    for entity in snapshot.descendants(*page)? {
+                        let id = entity.id();
+                        if is_new_region(snapshot, id)? {
+                            page_set.insert(*page);
+                            regions.insert(id);
+                        }
+                    }
+                }
+                if regions.is_empty() {
+                    bail!("there are no new text regions");
+                }
+                let pages = snapshot
+                    .pages()
+                    .map(|page| page.id())
+                    .filter(|id| page_set.contains(id))
+                    .collect::<Arc<[_]>>();
+                Ok(Self {
+                    pages,
+                    entities: Some(Arc::new(semantic_closure(snapshot, regions))),
+                    region: None,
                 })
             }
             Scope::Entities(requested) => {
@@ -152,6 +185,23 @@ impl NormalizedScope {
         self.region
             .and_then(|(candidate, bounds)| (candidate == page).then_some(bounds))
     }
+}
+
+fn is_new_region(snapshot: &Snapshot, region: EntityId) -> Result<bool> {
+    if !snapshot.component::<Region>(region)?.is_some_and(|value| {
+        value.origin == Origin::User && value.kind == TextRegion::kind()
+    }) {
+        return Ok(false);
+    }
+    for relation in snapshot.relations_to_as::<RecognizedFrom>(region) {
+        let content = relation.value().source;
+        if snapshot.component::<SourceText>(content)?.is_none()
+            || snapshot.component::<Translation>(content)?.is_none()
+        {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 fn semantic_closure(snapshot: &Snapshot, mut entities: BTreeSet<EntityId>) -> BTreeSet<EntityId> {

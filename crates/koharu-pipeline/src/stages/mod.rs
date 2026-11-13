@@ -47,6 +47,12 @@ impl StageInput {
         self.page
     }
 
+    /// An entity-scoped or hand-masked run edits only part of the page, so it paints
+    /// over the existing cleanup layer instead of replacing it.
+    fn incremental(&self) -> bool {
+        self.inpainting_mask.is_some() || self.entities.is_some()
+    }
+
     fn contains_entity(&self, entity: EntityId) -> Result<bool> {
         crate::scope::contains_entity(
             &self.scene,
