@@ -5,10 +5,11 @@ use image::{DynamicImage, ImageFormat, RgbaImage};
 use koharu_desktop::Frame;
 use koharu_scene::{
     AssetInput, AssetMetadata, AssetRole, At, Authored, Commit, EntityId, EntityOrigin,
-    Geometry as SceneGeometry, Group as SceneGroup, Origin, PageDraft, Point as ScenePoint,
-    Presents, RasterLayer as SceneRasterLayer, RasterLayerKind, Region as SceneRegion,
-    RemovePolicy, Revision, Session, Snapshot, SourceText as SceneSourceText,
-    TextGroup as SceneTextGroup, TextLayout as SceneTextLayout, TextLayoutKind,
+    FitsTo, Geometry as SceneGeometry, Group as SceneGroup, Origin, PageDraft, Point as ScenePoint,
+    Presents, RasterLayer as SceneRasterLayer, RasterLayerKind, RecognizedFrom,
+    Region as SceneRegion, RegionSpec, RemovePolicy, Revision, Session, Snapshot, SourceText as SceneSourceText,
+    TextGroup as SceneTextGroup, TextLayout as SceneTextLayout, TextLayoutKind, TextRegion,
+    TextRole as SceneTextRole,
     Translation as SceneTranslation, Typography as SceneTypography, Visibility as SceneVisibility,
 };
 use serde::Serialize;
@@ -402,6 +403,7 @@ impl Project {
                 angle_degrees: 0.0,
             },
             TextLayoutKind::Point,
+            false,
         )
         .await
     }
@@ -411,7 +413,19 @@ impl Project {
         page: EntityId,
         frame: Frame,
     ) -> Result<(Commit, EntityId)> {
-        self.add_text(page, frame, TextLayoutKind::Paragraph).await
+        self.add_text(page, frame, TextLayoutKind::Paragraph, false)
+            .await
+    }
+
+    /// Adds a user-drawn text region with its text layer, standing in for a detected
+    /// region so OCR and translation can run without the detection model.
+    pub(crate) async fn add_text_region(
+        &mut self,
+        page: EntityId,
+        frame: Frame,
+    ) -> Result<(Commit, EntityId)> {
+        self.add_text(page, frame, TextLayoutKind::Paragraph, true)
+            .await
     }
 
     async fn add_text(
@@ -419,19 +433,24 @@ impl Project {
         page: EntityId,
         frame: Frame,
         kind: TextLayoutKind,
+        detected_region: bool,
     ) -> Result<(Commit, EntityId)> {
         let snapshot = self.snapshot();
         let geometry = Self::geometry_from_frame(frame)?;
         let mut layer = None;
         let patch = snapshot.patch(|edit| {
             let content = edit.add_text_content(page, At::End)?;
-            edit.set(
-                content,
-                &SceneSourceText {
-                    text: Authored::user(String::new()),
-                    language: None,
-                },
-            )?;
+            // OCR leaves user-authored source text untouched, so a region's content
+            // starts without any, exactly as detection leaves it.
+            if !detected_region {
+                edit.set(
+                    content,
+                    &SceneSourceText {
+                        text: Authored::user(String::new()),
+                        language: None,
+                    },
+                )?;
+            }
             let added_layer = edit.add_text_layer(
                 page,
                 At::End,
@@ -444,6 +463,27 @@ impl Project {
             )?;
             layer = Some(added_layer);
             edit.set(added_layer, &geometry)?;
+            if detected_region {
+                let region = edit.add_entity(page, At::End)?;
+                edit.set(region, &geometry)?;
+                edit.set(
+                    region,
+                    &SceneRegion {
+                        origin: Origin::User,
+                        kind: TextRegion::kind(),
+                        label: Some("text".to_owned()),
+                    },
+                )?;
+                edit.set(
+                    content,
+                    &SceneTextRole {
+                        origin: Origin::User,
+                        role: "dev.koharu.text.free-text".to_owned(),
+                    },
+                )?;
+                edit.relate::<RecognizedFrom>(content, region)?;
+                edit.relate::<FitsTo>(added_layer, region)?;
+            }
             edit.set(
                 added_layer,
                 &SceneTypography {
