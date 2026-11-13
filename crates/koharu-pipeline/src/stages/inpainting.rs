@@ -15,6 +15,7 @@ use koharu_ml::{
     aot_inpainting::AotInpainting,
     flux2_klein::{Flux2KleinInpaint, Flux2KleinInpaintOptions},
     lama::{InpaintRequest, LaMa},
+    minimax_h3_image::{MiniMaxH3ImageInpaint, MiniMaxH3ImageInpaintOptions},
     rorem_mixed::{DEFAULT_NEGATIVE_PROMPT, DEFAULT_PROMPT, RoremMixed, RoremMixedOptions},
 };
 use koharu_scene::{
@@ -39,6 +40,20 @@ impl Default for Flux2KleinConfig {
     fn default() -> Self {
         Self {
             prompt: "Remove the text and reconstruct the background.".to_owned(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
+#[serde(default)]
+pub struct MiniMaxH3ImageConfig {
+    pub prompt: String,
+}
+
+impl Default for MiniMaxH3ImageConfig {
+    fn default() -> Self {
+        Self {
+            prompt: koharu_ml::minimax_h3_image::DEFAULT_PROMPT.to_owned(),
         }
     }
 }
@@ -75,6 +90,12 @@ impl Processor {
                     "FLUX.2 prompt contains NUL"
                 );
             }
+            InpaintingModel::MiniMaxH3Image(settings) => {
+                ensure!(
+                    !settings.prompt.contains('\0'),
+                    "MiniMax-H3-Image prompt contains NUL"
+                );
+            }
             InpaintingModel::RoremMixed(settings) => {
                 ensure!(
                     !settings.prompt.contains('\0') && !settings.negative_prompt.contains('\0'),
@@ -98,6 +119,7 @@ impl StageProcessor for Processor {
             InpaintingModel::LaMa {} => "lama",
             InpaintingModel::AotInpainting {} => "aot-inpainting",
             InpaintingModel::Flux2Klein(_) => "flux2-klein",
+            InpaintingModel::MiniMaxH3Image(_) => "minimax-h3-image",
             InpaintingModel::RoremMixed(_) => "rorem-mixed",
         }
     }
@@ -148,6 +170,10 @@ enum Model {
         model: Arc<Mutex<Flux2KleinInpaint>>,
         config: Flux2KleinConfig,
     },
+    MiniMax {
+        model: Arc<Mutex<MiniMaxH3ImageInpaint>>,
+        config: MiniMaxH3ImageConfig,
+    },
     Rorem {
         model: Arc<Mutex<RoremMixed>>,
         config: RoremMixedConfig,
@@ -165,6 +191,10 @@ impl Model {
             )))),
             InpaintingModel::Flux2Klein(config) => Ok(Self::Flux {
                 model: Arc::new(Mutex::new(Flux2KleinInpaint::load(device).await?)),
+                config: config.clone(),
+            }),
+            InpaintingModel::MiniMaxH3Image(config) => Ok(Self::MiniMax {
+                model: Arc::new(Mutex::new(MiniMaxH3ImageInpaint::load(device).await?)),
                 config: config.clone(),
             }),
             InpaintingModel::RoremMixed(config) => Ok(Self::Rorem {
@@ -251,6 +281,33 @@ impl Model {
                                     None,
                                     &DynamicImage::ImageLuma8(mask.clone()),
                                     &Flux2KleinInpaintOptions::default(),
+                                )
+                            },
+                        )
+                    })
+                    .await?,
+                )
+            }
+            Self::MiniMax { model, config } => {
+                let model = model.clone();
+                let config = config.clone();
+                (
+                    "minimax-h3-image",
+                    tokio_rayon::spawn(move || -> Result<DynamicImage> {
+                        let model = model
+                            .lock()
+                            .map_err(|_| anyhow!("MiniMax-H3-Image model lock is poisoned"))?;
+                        inpaint_tiled(
+                            &prepared.image,
+                            &prepared.mask,
+                            &prepared.text_mask,
+                            &prepared.flat_fill_regions,
+                            |image, mask| {
+                                model.inference(
+                                    &config.prompt,
+                                    image,
+                                    &DynamicImage::ImageLuma8(mask.clone()),
+                                    &MiniMaxH3ImageInpaintOptions::default(),
                                 )
                             },
                         )

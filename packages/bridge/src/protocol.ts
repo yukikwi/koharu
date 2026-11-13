@@ -240,6 +240,8 @@ export type GroupRole = "text";
 export type InpaintingModel = { model: "lama" } | { model: "aot-inpainting" } | {
 	model: "flux2-klein",
 } & Flux2KleinConfig | {
+	model: "minimax-h3-image",
+} & MiniMaxH3ImageConfig | {
 	model: "rorem-mixed",
 } & RoremMixedConfig;
 
@@ -290,6 +292,10 @@ export type LocalConfig = Record<string, never>;
 export type LoginEvent = { type: "progress"; message: string } | { type: "device_code"; verification_url: string; user_code: string };
 
 export type MiniMaxConfig = Record<string, never>;
+
+export type MiniMaxH3ImageConfig = {
+	prompt?: string,
+};
 
 export type Model = {
 	provider: Provider,
@@ -387,6 +393,7 @@ export type Preferences = {
 export type ProcessorConfig = {
 	"koharu-layout-rfdetr-seg-2xl"?: KoharuLayoutRFDetrSeg2XLConfig | null,
 	"flux2-klein"?: Flux2KleinConfig | null,
+	"minimax-h3-image"?: MiniMaxH3ImageConfig | null,
 	"rorem-mixed"?: RoremMixedConfig | null,
 };
 

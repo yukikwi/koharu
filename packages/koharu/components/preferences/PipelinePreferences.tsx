@@ -4,6 +4,7 @@ import { Eraser, FileText, Search } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import {
+  MINIMAX_H3_IMAGE_PROMPT,
   defaultModel,
   modelNames,
   modelOptions,
@@ -144,6 +145,14 @@ function ModelOptions({
         <TextField
           label={t('settings.pipeline.options.prompt')}
           value={model.prompt ?? 'Remove the text and reconstruct the background.'}
+          onChange={(prompt) => onChange({ ...model, prompt })}
+        />
+      )
+    case 'minimax-h3-image':
+      return (
+        <TextField
+          label={t('settings.pipeline.options.prompt')}
+          value={model.prompt ?? MINIMAX_H3_IMAGE_PROMPT}
           onChange={(prompt) => onChange({ ...model, prompt })}
         />
       )

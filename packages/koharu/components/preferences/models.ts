@@ -13,7 +13,7 @@ export type ModelName = PipelineModel['model']
 export const modelOptions = {
   detection: ['koharu-layout-rfdetr-seg-2xl'],
   ocr: ['paddleocr-vl-1.6', 'manga-ocr', 'baberu-ocr', 'hayai-ocr'],
-  inpainting: ['lama', 'aot-inpainting', 'flux2-klein', 'rorem-mixed'],
+  inpainting: ['lama', 'aot-inpainting', 'flux2-klein', 'minimax-h3-image', 'rorem-mixed'],
 } satisfies Record<ModelStage, ModelName[]>
 
 export const modelNames: Record<ModelName, string> = {
@@ -25,8 +25,12 @@ export const modelNames: Record<ModelName, string> = {
   lama: 'LaMa',
   'aot-inpainting': 'AOT Inpainting',
   'flux2-klein': 'FLUX.2 Klein',
+  'minimax-h3-image': 'MiniMax-H3-Image',
   'rorem-mixed': 'RORem Mixed',
 }
+
+export const MINIMAX_H3_IMAGE_PROMPT =
+  'Edit <Picture 1>. Remove all text and lettering, and reconstruct the hidden artwork and background in the same style.'
 
 export function defaultModel(model: ModelName): PipelineModel {
   switch (model) {
@@ -41,6 +45,8 @@ export function defaultModel(model: ModelName): PipelineModel {
       return { model }
     case 'flux2-klein':
       return { model, prompt: 'Remove the text and reconstruct the background.' }
+    case 'minimax-h3-image':
+      return { model, prompt: MINIMAX_H3_IMAGE_PROMPT }
     case 'rorem-mixed':
       return { model }
   }
@@ -88,6 +94,9 @@ export function replaceStage(
           ...config.processor,
           ...(model.model === 'flux2-klein'
             ? { 'flux2-klein': { prompt: model.prompt ?? undefined } }
+            : {}),
+          ...(model.model === 'minimax-h3-image'
+            ? { 'minimax-h3-image': { prompt: model.prompt ?? undefined } }
             : {}),
           ...(model.model === 'rorem-mixed'
             ? {

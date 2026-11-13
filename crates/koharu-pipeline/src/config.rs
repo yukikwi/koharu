@@ -3,7 +3,9 @@ use koharu_translator::{GenerationConfig, Language};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use specta::Type;
 
-use crate::stages::{Flux2KleinConfig, KoharuLayoutRFDetrSeg2XLConfig, RoremMixedConfig};
+use crate::stages::{
+    Flux2KleinConfig, KoharuLayoutRFDetrSeg2XLConfig, MiniMaxH3ImageConfig, RoremMixedConfig,
+};
 
 #[derive(Clone, Debug, PartialEq, Type)]
 pub struct PipelineConfig {
@@ -69,6 +71,7 @@ impl Serialize for PipelineConfig {
             InpaintingModel::LaMa {} => "lama",
             InpaintingModel::AotInpainting {} => "aot-inpainting",
             InpaintingModel::Flux2Klein(_) => "flux2-klein",
+            InpaintingModel::MiniMaxH3Image(_) => "minimax-h3-image",
             InpaintingModel::RoremMixed(_) => "rorem-mixed",
         };
         let mut processor = self.processor.clone();
@@ -79,6 +82,9 @@ impl Serialize for PipelineConfig {
         match &self.inpainting {
             InpaintingModel::Flux2Klein(config) => {
                 processor.flux2_klein.get_or_insert_with(|| config.clone());
+            }
+            InpaintingModel::MiniMaxH3Image(config) => {
+                processor.minimax_h3_image.get_or_insert_with(|| config.clone());
             }
             InpaintingModel::RoremMixed(config) => {
                 processor.rorem_mixed.get_or_insert_with(|| config.clone());
@@ -138,6 +144,12 @@ impl<'de> Deserialize<'de> for PipelineConfig {
             "flux2-klein" => {
                 InpaintingModel::Flux2Klein(file.processor.flux2_klein.clone().unwrap_or_default())
             }
+            "minimax-h3-image" => InpaintingModel::MiniMaxH3Image(
+                file.processor
+                    .minimax_h3_image
+                    .clone()
+                    .unwrap_or_default(),
+            ),
             "rorem-mixed" => {
                 InpaintingModel::RoremMixed(file.processor.rorem_mixed.clone().unwrap_or_default())
             }
@@ -219,6 +231,12 @@ impl PipelineConfig {
                     .clone()
                     .unwrap_or_else(|| config.clone()),
             )),
+            InpaintingModel::MiniMaxH3Image(config) => Ok(InpaintingModel::MiniMaxH3Image(
+                self.processor
+                    .minimax_h3_image
+                    .clone()
+                    .unwrap_or_else(|| config.clone()),
+            )),
             InpaintingModel::RoremMixed(config) => Ok(InpaintingModel::RoremMixed(
                 self.processor
                     .rorem_mixed
@@ -251,6 +269,8 @@ pub struct ProcessorConfig {
     pub koharu_layout_rfdetr_seg_2xl: Option<KoharuLayoutRFDetrSeg2XLConfig>,
     #[serde(rename = "flux2-klein")]
     pub flux2_klein: Option<Flux2KleinConfig>,
+    #[serde(rename = "minimax-h3-image")]
+    pub minimax_h3_image: Option<MiniMaxH3ImageConfig>,
     #[serde(rename = "rorem-mixed")]
     pub rorem_mixed: Option<RoremMixedConfig>,
 }
@@ -284,6 +304,8 @@ pub enum InpaintingModel {
     AotInpainting {},
     #[serde(rename = "flux2-klein")]
     Flux2Klein(Flux2KleinConfig),
+    #[serde(rename = "minimax-h3-image")]
+    MiniMaxH3Image(MiniMaxH3ImageConfig),
     #[serde(rename = "rorem-mixed")]
     RoremMixed(RoremMixedConfig),
 }
