@@ -403,7 +403,17 @@ impl Model {
         };
         let page = input.page;
         let manual = input.inpainting_mask.is_some();
-        let mut edit = if manual {
+        // A cleanup layer the user has already edited holds user-owned pixels, and
+        // the pipeline may not overwrite them. Merging new regions into it is
+        // committed as a user edit, like a manual inpaint.
+        let user_cleanup = match cleanup_entity {
+            Some(entity) => input
+                .scene
+                .asset(entity, &AssetRole::new("source")?)?
+                .is_some_and(|asset| asset.origin == Origin::User),
+            None => false,
+        };
+        let mut edit = if manual || user_cleanup {
             input.scene.edit()
         } else {
             input.scene.edit_as(generation(PRODUCER, model_name)?)
