@@ -229,6 +229,38 @@ export function TitleBar() {
                   })}
                 </MenubarItem>
               ))}
+              <MenubarSeparator />
+              <MenubarSub>
+                <MenubarSubTrigger
+                  disabled={!project || pages.length === 0}
+                  className='min-h-8 gap-1.5 px-2 py-1 text-xs'
+                >
+                  {t('menu.inpaint')}
+                </MenubarSubTrigger>
+                <MenubarSubContent className='min-w-40 p-1'>
+                  <MenubarItem
+                    onClick={() =>
+                      run(
+                        { scope: 'new_regions', value: pages.map((page) => page.id) },
+                        { operation: 'only', stage: 'inpainting' },
+                      )
+                    }
+                  >
+                    {t('menu.newRegionsAllPages')}
+                  </MenubarItem>
+                  <MenubarItem
+                    disabled={selectedPages.length === 0}
+                    onClick={() =>
+                      run(
+                        { scope: 'new_regions', value: selectedPages },
+                        { operation: 'only', stage: 'inpainting' },
+                      )
+                    }
+                  >
+                    {t('menu.newRegionsSelectedPages')}
+                  </MenubarItem>
+                </MenubarSubContent>
+              </MenubarSub>
             </MenubarContent>
           </MenubarMenu>
 
