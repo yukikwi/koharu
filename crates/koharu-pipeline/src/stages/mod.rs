@@ -20,6 +20,9 @@ pub(crate) struct StageInput {
     page: EntityId,
     entities: Option<Arc<BTreeSet<EntityId>>>,
     region: Option<Bounds>,
+    /// The run targets only regions that have not been processed yet, so work a
+    /// previous run already committed is left alone.
+    new_regions: bool,
     images: Arc<ImageCache>,
     inpainting_mask: Option<InpaintingMask>,
 }
@@ -30,6 +33,7 @@ impl StageInput {
         page: EntityId,
         entities: Option<Arc<BTreeSet<EntityId>>>,
         region: Option<Bounds>,
+        new_regions: bool,
         images: Arc<ImageCache>,
         inpainting_mask: Option<InpaintingMask>,
     ) -> Self {
@@ -38,6 +42,7 @@ impl StageInput {
             page,
             entities,
             region,
+            new_regions,
             images,
             inpainting_mask,
         }
@@ -226,6 +231,7 @@ mod tests {
                 page,
                 None,
                 None,
+                false,
                 Arc::new(ImageCache::default()),
                 mask,
             )

@@ -139,6 +139,7 @@ impl<'a> Execution<'a> {
                 page,
                 self.scope.entities(),
                 self.scope.region(page),
+                self.scope.new_regions(),
                 images,
                 self.inpainting_mask
                     .as_ref()

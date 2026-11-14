@@ -1907,6 +1907,7 @@ mod tests {
             page,
             None,
             None,
+            false,
             std::sync::Arc::new(crate::ImageCache::default()),
             None,
         );

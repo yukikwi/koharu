@@ -68,6 +68,7 @@ pub(crate) struct NormalizedScope {
     pages: Arc<[EntityId]>,
     entities: Option<Arc<BTreeSet<EntityId>>>,
     region: Option<(EntityId, Bounds)>,
+    new_regions: bool,
 }
 
 impl NormalizedScope {
@@ -83,6 +84,7 @@ impl NormalizedScope {
                 pages: snapshot.pages().map(|page| page.id()).collect(),
                 entities: None,
                 region: None,
+                new_regions: false,
             }),
             Scope::Pages(requested) => {
                 if requested.is_empty() {
@@ -101,6 +103,7 @@ impl NormalizedScope {
                     pages,
                     entities: None,
                     region: None,
+                    new_regions: false,
                 })
             }
             Scope::Region { page, bounds } => {
@@ -110,6 +113,7 @@ impl NormalizedScope {
                     pages: Arc::from([*page]),
                     entities: None,
                     region: Some((*page, *bounds)),
+                    new_regions: false,
                 })
             }
             Scope::NewRegions(requested) => {
@@ -141,6 +145,7 @@ impl NormalizedScope {
                     pages,
                     entities: Some(Arc::new(semantic_closure(snapshot, regions))),
                     region: None,
+                    new_regions: true,
                 })
             }
             Scope::Entities(requested) => {
@@ -167,6 +172,7 @@ impl NormalizedScope {
                     pages,
                     entities: Some(Arc::new(entities)),
                     region: None,
+                    new_regions: false,
                 })
             }
         }
@@ -180,6 +186,10 @@ impl NormalizedScope {
         self.entities.clone()
     }
 
+    pub(crate) fn new_regions(&self) -> bool {
+        self.new_regions
+    }
+
     pub(crate) fn region(&self, page: EntityId) -> Option<Bounds> {
         debug_assert!(self.pages.contains(&page));
         self.region
@@ -188,9 +198,10 @@ impl NormalizedScope {
 }
 
 fn is_new_region(snapshot: &Snapshot, region: EntityId) -> Result<bool> {
-    if !snapshot.component::<Region>(region)?.is_some_and(|value| {
-        value.origin == Origin::User && value.kind == TextRegion::kind()
-    }) {
+    if !snapshot
+        .component::<Region>(region)?
+        .is_some_and(|value| value.origin == Origin::User && value.kind == TextRegion::kind())
+    {
         return Ok(false);
     }
     for relation in snapshot.relations_to_as::<RecognizedFrom>(region) {

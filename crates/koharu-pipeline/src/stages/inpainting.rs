@@ -702,6 +702,24 @@ async fn prepare(input: &StageInput) -> Result<InpaintInput> {
             }
         }
     }
+    // A previous run committed every masked pixel to the cleanup layer as fully
+    // opaque, so those pixels are already inpainted. A new-regions run fills only
+    // what is still uncovered instead of regenerating them.
+    if input.new_regions
+        && let Some(cleanup) = cleanup.as_ref()
+    {
+        for (target, text, pixel) in mask
+            .iter_mut()
+            .zip(text_mask.iter_mut())
+            .zip(cleanup.pixels())
+            .map(|((target, text), pixel)| (target, text, pixel))
+        {
+            if pixel[3] == u8::MAX {
+                *target = 0;
+                *text = 0;
+            }
+        }
+    }
     let flat_fill_regions = flat_fill_regions(input, source.width(), source.height())?;
     Ok(InpaintInput {
         image: source,
@@ -1144,6 +1162,7 @@ mod tests {
             page,
             None,
             None,
+            false,
             Arc::new(crate::ImageCache::default()),
             Some(crate::InpaintingMask {
                 page,
@@ -1155,6 +1174,87 @@ mod tests {
         assert_eq!(prepared.mask.get_pixel(3, 4), &Luma([255]));
         assert_eq!(prepared.mask.get_pixel(0, 0), &Luma([0]));
         assert!(prepared.text_mask.pixels().all(|pixel| pixel[0] == 0));
+    }
+
+    #[tokio::test]
+    async fn new_region_inpainting_leaves_committed_cleanup_alone() {
+        let mut session = koharu_scene::Session::memory().await.unwrap();
+        let encode = |image: &DynamicImage| {
+            let mut bytes = Cursor::new(Vec::new());
+            image.write_to(&mut bytes, ImageFormat::Png).unwrap();
+            Arc::<[u8]>::from(bytes.into_inner())
+        };
+        let asset = |image: &DynamicImage| {
+            AssetInput::new(
+                encode(image),
+                "image/png",
+                AssetMetadata {
+                    width: Some(8),
+                    height: Some(8),
+                    attributes: BTreeMap::new(),
+                },
+            )
+        };
+        // The left half was inpainted by an earlier run.
+        let cleanup_pixels = RgbaImage::from_fn(8, 8, |x, _| {
+            Rgba([0, 0, 0, if x < 4 { u8::MAX } else { 0 }])
+        });
+        let mut ids = None;
+        let patch = session
+            .snapshot()
+            .patch(|edit| {
+                let page = edit.add_page(
+                    koharu_scene::PageDraft::new("page", 8.0, 8.0),
+                    koharu_scene::At::End,
+                )?;
+                edit.set_asset(
+                    page,
+                    &AssetRole::new("source")?,
+                    asset(&DynamicImage::new_rgb8(8, 8)),
+                )?;
+                let cleanup = edit.add_entity(page, At::Start)?;
+                edit.set(
+                    cleanup,
+                    &RasterLayer {
+                        origin: Origin::User,
+                        name: "Cleanup".to_owned(),
+                        kind: RasterLayerKind::Cleanup,
+                    },
+                )?;
+                edit.set_asset(
+                    cleanup,
+                    &AssetRole::new("source")?,
+                    asset(&DynamicImage::ImageRgba8(cleanup_pixels.clone())),
+                )?;
+                let region = edit.add_analysis_region::<TextRegion>(
+                    page,
+                    At::End,
+                    &Geometry::rectangle(1.0, 1.0, 6.0, 6.0),
+                    None,
+                )?;
+                ids = Some((page, region));
+                Ok(())
+            })
+            .unwrap();
+        let snapshot = session.commit(patch).await.unwrap().snapshot;
+        let (page, region) = ids.unwrap();
+        let input = |new_regions| {
+            StageInput::new(
+                snapshot.clone(),
+                page,
+                Some(Arc::new([region].into())),
+                None,
+                new_regions,
+                Arc::new(crate::ImageCache::default()),
+                None,
+            )
+        };
+
+        let fresh = prepare(&input(true)).await.unwrap();
+        assert_eq!(fresh.mask.get_pixel(2, 4), &Luma([0]));
+        assert_eq!(fresh.mask.get_pixel(5, 4), &Luma([255]));
+        let explicit = prepare(&input(false)).await.unwrap();
+        assert_eq!(explicit.mask.get_pixel(2, 4), &Luma([255]));
     }
 
     #[tokio::test]
@@ -1201,6 +1301,7 @@ mod tests {
             page,
             None,
             None,
+            false,
             Arc::new(crate::ImageCache::default()),
             None,
         );
@@ -1209,6 +1310,7 @@ mod tests {
             page,
             None,
             None,
+            false,
             Arc::new(crate::ImageCache::default()),
             Some(crate::InpaintingMask {
                 page,
