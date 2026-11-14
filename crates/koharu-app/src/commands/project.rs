@@ -5,9 +5,9 @@ use image::{DynamicImage, ImageFormat, RgbaImage};
 use koharu_desktop::Frame;
 use koharu_scene::{
     AssetInput, AssetMetadata, AssetRole, At, Authored, Commit, EntityId, EntityOrigin, FitsTo,
-    Geometry as SceneGeometry, Group as SceneGroup, Origin, PageDraft, Point as ScenePoint,
-    Presents, RasterLayer as SceneRasterLayer, RasterLayerKind, RecognizedFrom,
-    Region as SceneRegion, RegionSpec, RemovePolicy, Revision, Session, Snapshot,
+    Geometry as SceneGeometry, Glossary, GlossaryEntry, Group as SceneGroup, Origin, PageDraft,
+    Point as ScenePoint, Presents, RasterLayer as SceneRasterLayer, RasterLayerKind,
+    RecognizedFrom, Region as SceneRegion, RegionSpec, RemovePolicy, Revision, Session, Snapshot,
     SourceText as SceneSourceText, TextGroup as SceneTextGroup, TextLayout as SceneTextLayout,
     TextLayoutKind, TextRegion, TextRole as SceneTextRole, Translation as SceneTranslation,
     Typography as SceneTypography, Visibility as SceneVisibility,
@@ -33,6 +33,7 @@ pub struct ProjectInfo {
     pub active_page: Option<EntityId>,
     pub can_undo: bool,
     pub can_redo: bool,
+    pub glossary: Vec<GlossaryEntry>,
 }
 
 #[derive(Clone, Debug, Serialize, Type)]
@@ -309,14 +310,23 @@ impl Project {
         }
     }
 
-    pub(crate) fn info(&self) -> ProjectInfo {
-        ProjectInfo {
+    pub(crate) fn info(&self) -> Result<ProjectInfo> {
+        Ok(ProjectInfo {
             name: self.name.clone(),
             revision: self.revision(),
             active_page: self.active_page,
             can_undo: !self.undo.is_empty(),
             can_redo: !self.redo.is_empty(),
-        }
+            glossary: self.glossary()?,
+        })
+    }
+
+    pub(crate) fn glossary(&self) -> Result<Vec<GlossaryEntry>> {
+        Ok(self
+            .snapshot()
+            .project_component::<Glossary>()?
+            .map(|glossary| glossary.entries)
+            .unwrap_or_default())
     }
 
     pub(crate) fn pages(snapshot: &Snapshot) -> Result<Vec<PageSummary>> {
@@ -352,6 +362,29 @@ impl Project {
         let current = snapshot.page(page)?.page()?;
         let patch = snapshot.patch(|edit| {
             edit.set_page(page, PageDraft::new(label, current.width, current.height))
+        })?;
+        self.commit(patch).await
+    }
+
+    pub(crate) async fn set_glossary(&mut self, entries: Vec<GlossaryEntry>) -> Result<Commit> {
+        let entries = entries
+            .into_iter()
+            .map(|entry| GlossaryEntry {
+                source: entry.source.trim().to_owned(),
+                target: entry.target.trim().to_owned(),
+                note: entry
+                    .note
+                    .map(|note| note.trim().to_owned())
+                    .filter(|note| !note.is_empty()),
+            })
+            .filter(|entry| !entry.source.is_empty() || !entry.target.is_empty())
+            .collect::<Vec<_>>();
+        let patch = self.snapshot().patch(|edit| {
+            if entries.is_empty() {
+                edit.remove_project::<Glossary>()
+            } else {
+                edit.set_project(&Glossary { entries })
+            }
         })?;
         self.commit(patch).await
     }

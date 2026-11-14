@@ -159,7 +159,7 @@ async fn replace_project(window: &WebviewWindow<CefRuntime>, opened: Project) ->
     let workspace = Workspace::of(window)?;
     let snapshot = opened.snapshot();
     let page = opened.active_page();
-    let info = opened.info();
+    let info = opened.info()?;
     let title = format!("{} - Koharu", opened.name);
 
     workspace.agent.reset().await;
@@ -183,7 +183,13 @@ pub(crate) async fn get_project(
     window: WebviewWindow<CefRuntime>,
 ) -> std::result::Result<Option<ProjectInfo>, Error> {
     let workspace = Workspace::of(&window)?;
-    Ok(workspace.project.lock().await.as_ref().map(Project::info))
+    Ok(workspace
+        .project
+        .lock()
+        .await
+        .as_ref()
+        .map(Project::info)
+        .transpose()?)
 }
 
 #[tauri::command]
@@ -226,6 +232,24 @@ pub(crate) async fn list_projects(
     library: State<'_, ProjectLibrary>,
 ) -> std::result::Result<Vec<ProjectSummary>, Error> {
     Ok(library.list()?)
+}
+
+/// Reads another project's glossary without opening it in a window. A project held by a
+/// window is locked, so its glossary comes from that window's snapshot instead.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn get_project_glossary(
+    name: String,
+    window: WebviewWindow<CefRuntime>,
+) -> std::result::Result<Vec<koharu_scene::GlossaryEntry>, Error> {
+    for workspace in window.state::<Workspaces>().all() {
+        let project = workspace.project.lock().await;
+        if let Some(project) = project.as_ref().filter(|project| project.name == name) {
+            return Ok(project.glossary()?);
+        }
+    }
+    let library = window.state::<ProjectLibrary>().inner().clone();
+    Ok(library.open(&name).await?.glossary()?)
 }
 
 #[tauri::command]
@@ -413,7 +437,7 @@ pub(crate) async fn select_page(
         let project = project.as_mut().context("no project is open")?;
         project.select_page(page)?;
         let snapshot = project.snapshot();
-        let project_info = project.info();
+        let project_info = project.info()?;
         let selected_page = Project::page(&snapshot, page)?;
         (snapshot, project_info, selected_page)
     };

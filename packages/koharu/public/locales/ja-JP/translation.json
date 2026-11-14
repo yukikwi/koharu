@@ -70,7 +70,8 @@
     "cancel": "キャンセル",
     "clearSearch": "検索をクリア",
     "loading": "読み込み中…",
-    "reset": "リセット"
+    "reset": "リセット",
+    "save": "保存"
   },
   "errors": {
     "fatalTitle": "Koharuを続行できませんでした",
@@ -122,6 +123,22 @@
       "system": "システム"
     },
     "style": "スタイル"
+  },
+  "glossary": {
+    "add": "用語を追加",
+    "description": "翻訳時にここで指定したとおりに訳す人名・地名・固有の用語です。各ページには、そのページに出てくる用語だけが送られます。",
+    "duplicate": "同じ原語は一度しか登録できません。",
+    "import": "プロジェクトから読み込む",
+    "incomplete": "すべての用語に原語と訳語が必要です。",
+    "noProjects": "ほかのプロジェクトはありません",
+    "note": "メモ",
+    "notePlaceholder": "例：人名、女性",
+    "remove": "用語を削除",
+    "source": "原語",
+    "sourcePlaceholder": "元の用語",
+    "target": "訳語",
+    "targetPlaceholder": "指定する訳語",
+    "title": "用語集"
   },
   "inference": {
     "currentPage": "現在のページ",
@@ -256,6 +273,7 @@
     "file": "ファイル",
     "fit": "ウィンドウに合わせる",
     "github": "GitHub",
+    "glossary": "用語集…",
     "help": "ヘルプ",
     "import": "ページを読み込む",
     "inpaint": "インペイント",

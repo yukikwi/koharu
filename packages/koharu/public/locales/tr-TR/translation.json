@@ -70,7 +70,8 @@
     "cancel": "İptal",
     "clearSearch": "Aramayı temizle",
     "loading": "Yükleniyor…",
-    "reset": "Sıfırla"
+    "reset": "Sıfırla",
+    "save": "Kaydet"
   },
   "errors": {
     "fatalTitle": "Koharu devam edemedi",
@@ -122,6 +123,22 @@
       "system": "Sistem"
     },
     "style": "Stil"
+  },
+  "glossary": {
+    "add": "Terim ekle",
+    "description": "Çevirmenin tam olarak burada yazıldığı gibi aktarması gereken adlar, yerler ve özel terimler. Her sayfayla yalnızca o sayfada geçen terimler gönderilir.",
+    "duplicate": "Her kaynak terim yalnızca bir kez yer alabilir.",
+    "import": "Projeden içe aktar",
+    "incomplete": "Her terimin bir kaynağı ve bir çevirisi olmalıdır.",
+    "noProjects": "Başka proje yok",
+    "note": "Not",
+    "notePlaceholder": "örn. ad, kadın",
+    "remove": "Terimi kaldır",
+    "source": "Kaynak",
+    "sourcePlaceholder": "Özgün terim",
+    "target": "Çeviri",
+    "targetPlaceholder": "Tam çeviri",
+    "title": "Sözlük"
   },
   "inference": {
     "currentPage": "Geçerli sayfa",
@@ -256,6 +273,7 @@
     "file": "Dosya",
     "fit": "Pencereye Sığdır",
     "github": "GitHub",
+    "glossary": "Sözlük…",
     "help": "Yardım",
     "import": "Sayfaları İçe Aktar",
     "inpaint": "Doldur",

@@ -70,7 +70,8 @@
     "cancel": "Annuler",
     "clearSearch": "Effacer la recherche",
     "loading": "Chargement…",
-    "reset": "Réinitialiser"
+    "reset": "Réinitialiser",
+    "save": "Enregistrer"
   },
   "errors": {
     "fatalTitle": "Koharu ne peut pas continuer",
@@ -122,6 +123,22 @@
       "system": "Système"
     },
     "style": "Style"
+  },
+  "glossary": {
+    "add": "Ajouter un terme",
+    "description": "Noms, lieux et termes spéciaux que le traducteur doit rendre exactement comme indiqué ici. Chaque page n’envoie que les termes qu’elle contient.",
+    "duplicate": "Chaque terme source ne peut apparaître qu’une fois.",
+    "import": "Importer depuis un projet",
+    "incomplete": "Chaque terme doit avoir une source et une traduction.",
+    "noProjects": "Aucun autre projet",
+    "note": "Note",
+    "notePlaceholder": "ex. : nom, féminin",
+    "remove": "Supprimer le terme",
+    "source": "Source",
+    "sourcePlaceholder": "Terme original",
+    "target": "Traduction",
+    "targetPlaceholder": "Traduction exacte",
+    "title": "Glossaire"
   },
   "inference": {
     "currentPage": "Page actuelle",
@@ -256,6 +273,7 @@
     "file": "Fichier",
     "fit": "Ajuster à la fenêtre",
     "github": "GitHub",
+    "glossary": "Glossaire…",
     "help": "Aide",
     "import": "Importer des pages",
     "inpaint": "Inpainting",

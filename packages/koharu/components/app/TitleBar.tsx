@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next'
 
 import { AboutDialog } from '@/components/app/AboutDialog'
 import { useMacOS, WindowControls } from '@/components/app/WindowChrome'
+import { GlossaryDialog } from '@/components/editor/GlossaryDialog'
 import { call } from '@/lib/backend'
 import { selectableLayer } from '@/lib/geometry'
 import {
@@ -40,6 +41,7 @@ import { cn } from '@koharu/ui/lib/utils'
 export function TitleBar() {
   const { t } = useTranslation()
   const [aboutOpen, setAboutOpen] = useState(false)
+  const [glossaryOpen, setGlossaryOpen] = useState(false)
   const macOS = useMacOS()
   const project = useProject().data
   const pagesQuery = usePages(Boolean(project))
@@ -170,6 +172,10 @@ export function TitleBar() {
               >
                 {t('menu.redo')}
                 <MenubarShortcut>Ctrl+Shift+Z</MenubarShortcut>
+              </MenubarItem>
+              <MenubarSeparator />
+              <MenubarItem disabled={!project} onClick={() => setGlossaryOpen(true)}>
+                {t('menu.glossary')}
               </MenubarItem>
               <MenubarSeparator />
               <MenubarItem
@@ -319,6 +325,14 @@ export function TitleBar() {
         {!macOS && <WindowControls />}
       </header>
       <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
+      {project && (
+        <GlossaryDialog
+          open={glossaryOpen}
+          project={project.name}
+          glossary={project.glossary}
+          onOpenChange={setGlossaryOpen}
+        />
+      )}
     </>
   )
 }

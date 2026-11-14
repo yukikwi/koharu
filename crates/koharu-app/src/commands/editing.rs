@@ -56,6 +56,26 @@ pub(crate) async fn rename_page(
 
 #[tauri::command]
 #[specta::specta]
+pub(crate) async fn set_glossary(
+    entries: Vec<koharu_scene::GlossaryEntry>,
+    window: WebviewWindow<CefRuntime>,
+) -> Result<(), Error> {
+    let workspace = Workspace::of(&window)?;
+    let desktop = &workspace.desktop;
+    let (commit, page) = {
+        let mut project = workspace.project.lock().await;
+        let project = project.as_mut().context("no project is open")?;
+        let commit = project.set_glossary(entries).await?;
+        project.record_commit(&commit);
+        (commit, project.active_page())
+    };
+    let canvas = synchronize_canvas(desktop, &commit, page).await?;
+    workspace.canvas_channel.publish(canvas);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub(crate) async fn delete_pages(
     pages: Vec<EntityId>,
     window: WebviewWindow<CefRuntime>,

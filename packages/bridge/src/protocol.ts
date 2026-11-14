@@ -17,6 +17,11 @@ export const commands = {
 	getPages: () => __TAURI_INVOKE<PageSummary[]>("get_pages"),
 	getPage: () => __TAURI_INVOKE<Page | null>("get_page"),
 	listProjects: () => __TAURI_INVOKE<ProjectSummary[]>("list_projects"),
+	/**
+	 *  Reads another project's glossary without opening it in a window. A project held by a
+	 *  window is locked, so its glossary comes from that window's snapshot instead.
+	 */
+	getProjectGlossary: (name: string) => __TAURI_INVOKE<GlossaryEntry[]>("get_project_glossary", { name }),
 	createProject: (name: string) => __TAURI_INVOKE<null>("create_project", { name }),
 	/**  A project is edited in one window at a time; opening it again focuses that window. */
 	openProject: (name: string) => __TAURI_INVOKE<null>("open_project", { name }),
@@ -30,6 +35,7 @@ export const commands = {
 	movePage: (page: EntityId, index: number) => __TAURI_INVOKE<null>("move_page", { page, index }),
 	setSourceText: (layer: EntityId, text: string) => __TAURI_INVOKE<null>("set_source_text", { layer, text }),
 	setTranslation: (layer: EntityId, text: string | null) => __TAURI_INVOKE<null>("set_translation", { layer, text }),
+	setGlossary: (entries: GlossaryEntry[]) => __TAURI_INVOKE<null>("set_glossary", { entries }),
 	setTypography: (updates: TypographyUpdate[]) => __TAURI_INVOKE<null>("set_typography", { updates }),
 	setGeometry: (updates: GeometryUpdate[]) => __TAURI_INVOKE<null>("set_geometry", { updates }),
 	setVisibility: (layers: EntityId[], visible: boolean | null, opacity: number | null) => __TAURI_INVOKE<null>("set_visibility", { layers, visible, opacity }),
@@ -238,6 +244,12 @@ export type GeometryUpdate = {
 	points: Point[] | null,
 };
 
+export type GlossaryEntry = {
+	source: string,
+	target: string,
+	note: string | null,
+};
+
 export type GoogleCloudConfig = Record<string, never>;
 
 export type GrokConfig = Record<string, never>;
@@ -418,6 +430,7 @@ export type ProjectInfo = {
 	active_page: EntityId | null,
 	can_undo: boolean,
 	can_redo: boolean,
+	glossary: GlossaryEntry[],
 };
 
 export type ProjectSummary = {

@@ -32,6 +32,7 @@ describe('StartView', () => {
             active_page: null,
             can_undo: false,
             can_redo: false,
+            glossary: [],
           }
         : null,
     )
@@ -62,6 +63,7 @@ describe('StartView', () => {
             active_page: null,
             can_undo: false,
             can_redo: false,
+            glossary: [],
           }
         : null,
     )

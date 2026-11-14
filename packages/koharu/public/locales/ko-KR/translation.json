@@ -70,7 +70,8 @@
     "cancel": "취소",
     "clearSearch": "검색 지우기",
     "loading": "불러오는 중…",
-    "reset": "초기화"
+    "reset": "초기화",
+    "save": "저장"
   },
   "errors": {
     "fatalTitle": "Koharu를 계속 실행할 수 없습니다",
@@ -122,6 +123,22 @@
       "system": "시스템"
     },
     "style": "스타일"
+  },
+  "glossary": {
+    "add": "용어 추가",
+    "description": "번역할 때 여기에 적힌 그대로 옮겨야 하는 인명, 지명, 특수 용어입니다. 각 페이지에는 해당 페이지에 나오는 용어만 전송됩니다.",
+    "duplicate": "같은 원문 용어는 한 번만 등록할 수 있습니다.",
+    "import": "프로젝트에서 가져오기",
+    "incomplete": "모든 용어에는 원문과 번역이 모두 필요합니다.",
+    "noProjects": "다른 프로젝트가 없습니다",
+    "note": "메모",
+    "notePlaceholder": "예: 이름, 여성",
+    "remove": "용어 삭제",
+    "source": "원문",
+    "sourcePlaceholder": "원래 용어",
+    "target": "번역",
+    "targetPlaceholder": "정확한 번역",
+    "title": "용어집"
   },
   "inference": {
     "currentPage": "현재 페이지",
@@ -256,6 +273,7 @@
     "file": "파일",
     "fit": "창에 맞춤",
     "github": "GitHub",
+    "glossary": "용어집…",
     "help": "도움말",
     "import": "페이지 가져오기",
     "inpaint": "인페인팅",
