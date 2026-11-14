@@ -36,8 +36,20 @@ pub const DEFAULT_PROMPT: &str = "Remove only the text and lettering. Keep the s
 
 /// FLUX.2 Klein is calibrated for 1 MP; latents are 16-pixel aligned
 /// (8x VAE downsampling followed by 2x2 patchification into 128 channels).
-const TARGET_AREA: f64 = 1024.0 * 1024.0;
+const MAX_AREA: f64 = 1024.0 * 1024.0;
+/// Smallest working area. Below it a manual-removal crop is only a few dozen
+/// tokens, the denoise mask swallows the whole bubble, and the model replaces
+/// its fill with the surrounding page colour.
+const MIN_AREA: f64 = 768.0 * 768.0;
+/// Linear scale of the reference image relative to the working size.
+const REFERENCE_SCALE: f64 = 0.5;
 const SIZE_MULTIPLE: u32 = 16;
+
+/// Core tile edge for the inpainting stage. Every crop costs a full DiT pass
+/// at no less than `MIN_AREA`, so a crop of this core plus the stage's
+/// 128-pixel context on each side (at most 1024 pixels) packs as many mask
+/// components into one call as fit in the calibrated area.
+pub const TILE_SIZE: u32 = 768;
 const SAMPLE_STEPS: i32 = 16;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -107,6 +119,11 @@ impl Flux3KleinInpaint {
         let source_mask = mask_image.to_luma8();
         let (width, height) = processing_size(source.width(), source.height());
         let init_image = resize_rgb(&source, width, height);
+        let (reference_width, reference_height) = (
+            align_to_multiple(f64::from(width) * REFERENCE_SCALE),
+            align_to_multiple(f64::from(height) * REFERENCE_SCALE),
+        );
+        let reference_image = resize_rgb(&source, reference_width, reference_height);
         let mut mask = resize_gray(&source_mask, width, height);
         for pixel in mask.pixels_mut() {
             *pixel = Luma([if pixel.0[0] < 128 { 0 } else { 255 }]);
@@ -115,6 +132,7 @@ impl Flux3KleinInpaint {
         tracing::info!(
             input = %format!("{}x{}", source.width(), source.height()),
             processing = %format!("{width}x{height}"),
+            reference = %format!("{reference_width}x{reference_height}"),
             mask_coverage = %format!("{:.2}%", masked as f64 * 100.0 / f64::from(width * height)),
             seed = options.seed,
             steps = SAMPLE_STEPS,
@@ -127,8 +145,13 @@ impl Flux3KleinInpaint {
                 prompt: prompt.to_owned(),
                 width: i32::try_from(width)?,
                 height: i32::try_from(height)?,
-                init_image: Some(init_image.clone()),
-                reference_images: vec![init_image],
+                init_image: Some(init_image),
+                // Deliberate divergence from upstream, which passes the init
+                // image as the reference at full size. Unmasked latents are
+                // already preserved by the denoise mask, so the reference only
+                // supplies context; at half scale it adds a quarter of the
+                // image tokens instead of doubling the DiT sequence.
+                reference_images: vec![reference_image],
                 reference_image_args: Some("resize_before_vae=0".into()),
                 mask_image: Some(mask),
                 sample: SampleParams {
@@ -177,17 +200,21 @@ impl Flux3KleinInpaint {
     }
 }
 
-/// Scales to the calibrated area in either direction, keeping the aspect ratio.
-/// Small crops must be upscaled: at native size a manual-removal crop is only a
-/// few dozen 16-pixel tokens, the denoise mask swallows the whole bubble, and
-/// the model replaces its fill with the surrounding page colour.
+/// Clamps the crop area into `MIN_AREA..=MAX_AREA`, keeping the aspect ratio.
+/// Sampling cost grows with the token count, so crops already inside the range
+/// keep their native resolution instead of being upscaled to the calibrated
+/// area.
 fn processing_size(width: u32, height: u32) -> (u32, u32) {
-    let scale = (TARGET_AREA / (f64::from(width) * f64::from(height))).sqrt();
-    let align = |value: u32| {
-        let aligned = (f64::from(value) * scale / f64::from(SIZE_MULTIPLE)).round() as u32;
-        aligned.max(1) * SIZE_MULTIPLE
-    };
-    (align(width), align(height))
+    let area = f64::from(width) * f64::from(height);
+    let scale = (area.clamp(MIN_AREA, MAX_AREA) / area).sqrt();
+    (
+        align_to_multiple(f64::from(width) * scale),
+        align_to_multiple(f64::from(height) * scale),
+    )
+}
+
+fn align_to_multiple(value: f64) -> u32 {
+    ((value / f64::from(SIZE_MULTIPLE)).round() as u32).max(1) * SIZE_MULTIPLE
 }
 
 /// Neighbourhood used to estimate decode drift; large enough to reach unmasked

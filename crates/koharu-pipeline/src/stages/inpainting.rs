@@ -257,6 +257,7 @@ impl Model {
                             &prepared.mask,
                             &prepared.text_mask,
                             &prepared.flat_fill_regions,
+                            TILE_SIZE,
                             |image, mask| {
                                 Ok(DynamicImage::ImageRgb8(model.inference(
                                     image,
@@ -282,6 +283,7 @@ impl Model {
                             &prepared.mask,
                             &prepared.text_mask,
                             &prepared.flat_fill_regions,
+                            TILE_SIZE,
                             |image, mask| {
                                 Ok(DynamicImage::ImageRgb8(model.inference(image, mask)?))
                             },
@@ -304,6 +306,7 @@ impl Model {
                             &prepared.mask,
                             &prepared.text_mask,
                             &prepared.flat_fill_regions,
+                            TILE_SIZE,
                             |image, mask| {
                                 model.inference(
                                     &config.prompt,
@@ -332,6 +335,7 @@ impl Model {
                             &prepared.mask,
                             &prepared.text_mask,
                             &prepared.flat_fill_regions,
+                            koharu_ml::flux3_klein::TILE_SIZE,
                             |image, mask| {
                                 model.inference(
                                     &config.prompt,
@@ -359,6 +363,7 @@ impl Model {
                             &prepared.mask,
                             &prepared.text_mask,
                             &prepared.flat_fill_regions,
+                            TILE_SIZE,
                             |image, mask| {
                                 model.inference(
                                     &config.prompt,
@@ -386,6 +391,7 @@ impl Model {
                             &prepared.mask,
                             &prepared.text_mask,
                             &prepared.flat_fill_regions,
+                            TILE_SIZE,
                             |image, mask| {
                                 Ok(DynamicImage::ImageRgb8(model.inference(
                                     image,
@@ -708,6 +714,8 @@ async fn prepare(input: &StageInput) -> Result<InpaintInput> {
     })
 }
 
+/// Core tile edge for models whose cost follows the crop size. A model that
+/// resamples every crop to a fixed working size owns its own tile edge.
 const TILE_SIZE: u32 = 512;
 const TILE_CONTEXT: u32 = 128;
 const UNIFORM_BACKGROUND_MIN_PIXELS: usize = 16;
@@ -737,6 +745,7 @@ fn inpaint_tiled(
     mask: &GrayImage,
     text_mask: &GrayImage,
     flat_fill_regions: &[FlatFillRegion],
+    tile_size: u32,
     mut inference: impl FnMut(&DynamicImage, &GrayImage) -> Result<DynamicImage>,
 ) -> Result<DynamicImage> {
     ensure!(
@@ -750,7 +759,7 @@ fn inpaint_tiled(
     let mut output = image.to_rgb8();
     let mut pending_mask = mask.clone();
     fill_uniform_regions(&mut output, &mut pending_mask, text_mask, flat_fill_regions);
-    let (component_labels, tiles) = inpaint_tiles(&pending_mask);
+    let (component_labels, tiles) = inpaint_tiles(&pending_mask, tile_size);
     for tile in &tiles {
         let [left, top, right, bottom] = tile.crop;
         let crop_width = right - left;
@@ -808,20 +817,23 @@ fn fill_uniform_regions(
     }
 }
 
-fn inpaint_tiles(mask: &GrayImage) -> (ImageBuffer<Luma<u32>, Vec<u32>>, Vec<InpaintTile>) {
+fn inpaint_tiles(
+    mask: &GrayImage,
+    tile_size: u32,
+) -> (ImageBuffer<Luma<u32>, Vec<u32>>, Vec<InpaintTile>) {
     let (labels, components) = mask_components(mask);
     let mut bounded_tiles: Vec<InpaintTile> = Vec::new();
     let mut split_tiles = Vec::new();
 
     for component in components {
         let [left, top, right, bottom] = component.bounds;
-        if right - left <= TILE_SIZE && bottom - top <= TILE_SIZE {
+        if right - left <= tile_size && bottom - top <= tile_size {
             let best = bounded_tiles
                 .iter()
                 .enumerate()
                 .filter_map(|(index, tile)| {
                     let bounds = union_bounds(tile.core, component.bounds);
-                    ((bounds[2] - bounds[0] <= TILE_SIZE) && (bounds[3] - bounds[1] <= TILE_SIZE))
+                    ((bounds[2] - bounds[0] <= tile_size) && (bounds[3] - bounds[1] <= tile_size))
                         .then_some((bounds_area(bounds) - bounds_area(tile.core), index, bounds))
                 })
                 .min_by_key(|(growth, index, _)| (*growth, *index));
@@ -842,10 +854,10 @@ fn inpaint_tiles(mask: &GrayImage) -> (ImageBuffer<Luma<u32>, Vec<u32>>, Vec<Inp
 
         let mut core_top = top;
         while core_top < bottom {
-            let core_bottom = core_top.saturating_add(TILE_SIZE).min(bottom);
+            let core_bottom = core_top.saturating_add(tile_size).min(bottom);
             let mut core_left = left;
             while core_left < right {
-                let core_right = core_left.saturating_add(TILE_SIZE).min(right);
+                let core_right = core_left.saturating_add(tile_size).min(right);
                 let core = [core_left, core_top, core_right, core_bottom];
                 if let Some(owned_bounds) = component_bounds_in(&labels, component.label, core) {
                     split_tiles.push(InpaintTile {
@@ -1238,6 +1250,7 @@ mod tests {
             &mask,
             &mask,
             &[rectangle_region([0, 0, 96, 96])],
+            TILE_SIZE,
             |_, _| {
                 calls += 1;
                 Ok(DynamicImage::new_rgb8(1, 1))
@@ -1289,6 +1302,7 @@ mod tests {
                 rectangle_region([10, 10, 90, 90]),
                 rectangle_region([110, 10, 190, 90]),
             ],
+            TILE_SIZE,
             |_, _| {
                 calls += 1;
                 Ok(DynamicImage::new_rgb8(1, 1))
@@ -1318,6 +1332,7 @@ mod tests {
             &mask,
             &mask,
             &[],
+            TILE_SIZE,
             |tile, tile_mask| {
                 calls += 1;
                 assert_eq!(
@@ -1349,7 +1364,7 @@ mod tests {
             }
         }
 
-        let (labels, tiles) = inpaint_tiles(&mask);
+        let (labels, tiles) = inpaint_tiles(&mask, TILE_SIZE);
 
         assert_eq!(tiles.len(), 2);
         for tile in &tiles {
@@ -1394,6 +1409,7 @@ mod tests {
             &mask,
             &mask,
             &[],
+            TILE_SIZE,
             |tile, _| {
                 calls += 1;
                 assert!(tile.width() <= TILE_CONTEXT * 2 + 1);
