@@ -1,7 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use koharu_scene::{Authored, Geometry, LanguageTag, Origin, SourceText, Translation};
-use koharu_translator::{SegmentBox, TranslationRequest, Translator};
+use koharu_scene::{Authored, Geometry, Glossary, LanguageTag, Origin, SourceText, Translation};
+use koharu_translator::{GlossaryTerm, SegmentBox, TranslationRequest, Translator};
 
 use crate::{TranslationConfig, scope::geometry_extents};
 
@@ -75,6 +75,14 @@ impl StageProcessor for Processor {
         if let Some(instructions) = self.config.instructions.as_deref() {
             request = request.with_instructions(instructions);
         }
+        if let Some(glossary) = input.scene.project_component::<Glossary>()? {
+            request =
+                request.with_glossary(glossary.entries.into_iter().map(|entry| GlossaryTerm {
+                    source: entry.source,
+                    target: entry.target,
+                    note: entry.note,
+                }));
+        }
         if Translator::supports_vision(&self.config.model, &self.config.generation)
             && let Some(image) = input.images.get(&input.scene, input.page, "source").await?
         {
@@ -87,6 +95,7 @@ impl StageProcessor for Processor {
         let language = LanguageTag::new(self.config.target_language.tag())?;
         let generated = generation(PRODUCER, provider)?;
         let mut edit = input.scene.edit_as(generated.clone());
+        edit.observe_project::<Glossary>()?;
         for (entity, _) in &targets {
             edit.observe::<SourceText>(*entity)?;
             edit.observe::<Translation>(*entity)?;

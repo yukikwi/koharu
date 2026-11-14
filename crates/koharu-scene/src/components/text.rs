@@ -220,3 +220,55 @@ impl Component for TextRole {
         true
     }
 }
+
+/// Project terminology that translation must render consistently, such as
+/// character names, places, and recurring special terms.
+#[revisioned(revision = 1)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize, Type)]
+pub struct Glossary {
+    pub entries: Vec<GlossaryEntry>,
+}
+
+#[revisioned(revision = 1)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Type)]
+pub struct GlossaryEntry {
+    pub source: String,
+    pub target: String,
+    pub note: Option<String>,
+}
+
+impl Component for Glossary {
+    const KIND: &'static str = "dev.koharu.text.glossary";
+
+    fn validate(&self, _context: &ValidationContext<'_>) -> Result<()> {
+        const MAX_ENTRIES: usize = 10_000;
+        const MAX_FIELD: usize = 4096;
+        let field = |value: &str| {
+            !value.is_empty()
+                && value.len() <= MAX_FIELD
+                && value.trim() == value
+                && !value.contains('\0')
+        };
+        if self.entries.len() > MAX_ENTRIES {
+            return Err(Error::invalid("glossary has too many entries"));
+        }
+        let mut sources = std::collections::HashSet::with_capacity(self.entries.len());
+        for entry in &self.entries {
+            if !field(&entry.source)
+                || !field(&entry.target)
+                || entry.note.as_deref().is_some_and(|note| !field(note))
+            {
+                return Err(Error::invalid(
+                    "glossary entries need trimmed, non-empty source and target text",
+                ));
+            }
+            if !sources.insert(entry.source.as_str()) {
+                return Err(Error::invalid(format!(
+                    "glossary contains duplicate source term {:?}",
+                    entry.source
+                )));
+            }
+        }
+        Ok(())
+    }
+}

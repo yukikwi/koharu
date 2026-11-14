@@ -5,7 +5,7 @@ use indoc::indoc;
 use serde::{Deserialize, Deserializer, Serialize, de};
 use serde_json::{Value, json};
 
-use crate::{Language, SegmentBox, TranslationContext, TranslationRequest};
+use crate::{GlossaryTerm, Language, SegmentBox, TranslationContext, TranslationRequest};
 
 pub(crate) fn prompts(request: &TranslationRequest) -> anyhow::Result<(String, String)> {
     let input = TranslationInput {
@@ -181,6 +181,27 @@ fn translation_system_prompt(request: &TranslationRequest) -> String {
         }
     }
 
+    let glossary = relevant_glossary(request);
+    if !glossary.is_empty() {
+        prompt.push_str("\n\n");
+        prompt.push_str(indoc! {"
+            Glossary requirements:
+            The glossary below is authoritative and takes precedence over the general translation requirements.
+            - Whenever a source term appears, render it exactly as its target, even if the target keeps original-language or Latin text.
+            - Treat glossary terms as proper nouns unless the surrounding text clearly uses the term as an ordinary word.
+            - Notes describe a term for disambiguation; never translate or output a note.
+            Glossary (source → target, optional note):
+        "});
+        for term in glossary {
+            let _ = write!(prompt, "- {} → {}", term.source, term.target);
+            if let Some(note) = term.note.as_deref() {
+                let _ = write!(prompt, " ({note})");
+            }
+            prompt.push('\n');
+        }
+        prompt.truncate(prompt.trim_end().len());
+    }
+
     if let Some(instructions) = request
         .instructions
         .as_deref()
@@ -191,6 +212,32 @@ fn translation_system_prompt(request: &TranslationRequest) -> String {
         prompt.push_str(instructions);
     }
     prompt
+}
+
+/// Sends only the terms present in this request so a long project glossary
+/// does not dilute the prompt on pages where its terms never appear.
+fn relevant_glossary(request: &TranslationRequest) -> Vec<&GlossaryTerm> {
+    if request.glossary.is_empty() {
+        return Vec::new();
+    }
+    let text = request
+        .segments
+        .iter()
+        .map(String::as_str)
+        .chain(
+            request
+                .context
+                .iter()
+                .map(|context| context.source.as_str()),
+        )
+        .collect::<Vec<_>>()
+        .join("\n")
+        .to_lowercase();
+    request
+        .glossary
+        .iter()
+        .filter(|term| text.contains(&term.source.to_lowercase()))
+        .collect()
 }
 
 #[derive(Serialize)]
@@ -375,6 +422,30 @@ mod tests {
         assert_eq!(translations["items"]["properties"]["id"]["maximum"], 2);
         assert_eq!(translations["items"]["additionalProperties"], false);
         assert_eq!(schema["additionalProperties"], false);
+    }
+
+    #[test]
+    fn glossary_sends_only_terms_present_in_the_request() {
+        let term = |source: &str, target: &str, note: Option<&str>| GlossaryTerm {
+            source: source.to_owned(),
+            target: target.to_owned(),
+            note: note.map(str::to_owned),
+        };
+        let request = TranslationRequest::new(["ピンク確保してっ！"], Language::Thai)
+            .with_glossary([
+                term("ピンク", "พิ้งค์", Some("name, female")),
+                term("アイギス", "ไอจิส", None),
+            ]);
+        let prompt = translation_system_prompt(&request);
+        assert!(prompt.contains("- ピンク → พิ้งค์ (name, female)"));
+        assert!(!prompt.contains("アイギス"));
+
+        let unrelated = TranslationRequest::new(["hello"], Language::Thai).with_glossary([term(
+            "アイギス",
+            "ไอจิส",
+            None,
+        )]);
+        assert!(!translation_system_prompt(&unrelated).contains("Glossary"));
     }
 
     #[test]

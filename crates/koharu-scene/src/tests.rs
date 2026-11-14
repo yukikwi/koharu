@@ -127,8 +127,9 @@ async fn built_in_component_schema_revisions_are_explicit() {
             schema::<TextContent>(),
             schema::<crate::components::Assets>(),
             schema::<Relation>(),
+            schema::<Glossary>(),
         ],
-        [1; 18]
+        [1; 19]
     );
     assert_eq!(schema::<TextLayout>(), 2);
 }
@@ -156,6 +157,7 @@ async fn built_in_component_kinds_express_domain_ownership() {
             DetectionAnalysis::KIND,
             OcrAnalysis::KIND,
             crate::components::Assets::KIND,
+            Glossary::KIND,
         ],
         [
             "dev.koharu.project",
@@ -177,6 +179,7 @@ async fn built_in_component_kinds_express_domain_ownership() {
             "dev.koharu.analysis.detection",
             "dev.koharu.analysis.ocr",
             "dev.koharu.assets",
+            "dev.koharu.text.glossary",
         ]
     );
 }

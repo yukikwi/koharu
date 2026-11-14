@@ -19,6 +19,7 @@ pub struct TranslationRequest {
     pub source_language: Option<Language>,
     pub target_language: Language,
     pub instructions: Option<String>,
+    pub glossary: Vec<GlossaryTerm>,
     pub context: Vec<TranslationContext>,
     pub image: Option<Arc<DynamicImage>>,
 }
@@ -35,6 +36,7 @@ impl TranslationRequest {
             source_language: None,
             target_language,
             instructions: None,
+            glossary: Vec::new(),
             context: Vec::new(),
             image: None,
         }
@@ -50,6 +52,12 @@ impl TranslationRequest {
     #[must_use]
     pub fn with_instructions(mut self, instructions: impl Into<String>) -> Self {
         self.instructions = Some(instructions.into());
+        self
+    }
+
+    #[must_use]
+    pub fn with_glossary(mut self, glossary: impl IntoIterator<Item = GlossaryTerm>) -> Self {
+        self.glossary = glossary.into_iter().collect();
         self
     }
 
@@ -160,6 +168,14 @@ impl SegmentBox {
         ];
         (bounds[0] < bounds[2] && bounds[1] < bounds[3]).then_some(Self(bounds))
     }
+}
+
+/// A source term with the exact rendering the translation must use.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GlossaryTerm {
+    pub source: String,
+    pub target: String,
+    pub note: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
