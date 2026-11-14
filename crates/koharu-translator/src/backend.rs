@@ -13,6 +13,9 @@ const JPEG_QUALITY: u8 = 88;
 #[derive(Debug, Clone, PartialEq)]
 pub struct TranslationRequest {
     pub segments: Vec<String>,
+    /// Page location of each segment, index-aligned with `segments`. Empty when
+    /// the caller has no geometry.
+    pub boxes: Vec<Option<SegmentBox>>,
     pub source_language: Option<Language>,
     pub target_language: Language,
     pub instructions: Option<String>,
@@ -28,6 +31,7 @@ impl TranslationRequest {
     ) -> Self {
         Self {
             segments: segments.into_iter().map(Into::into).collect(),
+            boxes: Vec::new(),
             source_language: None,
             target_language,
             instructions: None,
@@ -46,6 +50,12 @@ impl TranslationRequest {
     #[must_use]
     pub fn with_instructions(mut self, instructions: impl Into<String>) -> Self {
         self.instructions = Some(instructions.into());
+        self
+    }
+
+    #[must_use]
+    pub fn with_boxes(mut self, boxes: impl IntoIterator<Item = Option<SegmentBox>>) -> Self {
+        self.boxes = boxes.into_iter().collect();
         self
     }
 
@@ -119,6 +129,37 @@ pub(crate) fn encode_image(image: &DynamicImage) -> anyhow::Result<EncodedImage>
     Ok(EncodedImage {
         data: STANDARD.encode(bytes.into_inner()),
     })
+}
+
+/// A segment's axis-aligned bounds on its page as `[y_min, x_min, y_max, x_max]`
+/// normalized to `0..=1000`. This is the `box_2d` grounding convention Gemini
+/// and Gemma vision models are trained on, and it stays valid when the attached
+/// page image is downscaled.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(transparent)]
+pub struct SegmentBox([u16; 4]);
+
+impl SegmentBox {
+    /// Normalizes pixel extents on a `page_width` x `page_height` page.
+    #[must_use]
+    pub fn from_extents(
+        (min_x, min_y, max_x, max_y): (f64, f64, f64, f64),
+        page_width: f64,
+        page_height: f64,
+    ) -> Option<Self> {
+        if !(page_width > 0.0 && page_height > 0.0) {
+            return None;
+        }
+        let scale =
+            |value: f64, extent: f64| (value / extent * 1000.0).round().clamp(0.0, 1000.0) as u16;
+        let bounds = [
+            scale(min_y, page_height),
+            scale(min_x, page_width),
+            scale(max_y, page_height),
+            scale(max_x, page_width),
+        ];
+        (bounds[0] < bounds[2] && bounds[1] < bounds[3]).then_some(Self(bounds))
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

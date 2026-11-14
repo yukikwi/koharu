@@ -1,9 +1,9 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use koharu_scene::{Authored, LanguageTag, Origin, SourceText, Translation};
-use koharu_translator::{TranslationRequest, Translator};
+use koharu_scene::{Authored, Geometry, LanguageTag, Origin, SourceText, Translation};
+use koharu_translator::{SegmentBox, TranslationRequest, Translator};
 
-use crate::TranslationConfig;
+use crate::{TranslationConfig, scope::geometry_extents};
 
 use super::{StageInput, StageProcessor, finish, generation};
 
@@ -35,8 +35,12 @@ impl StageProcessor for Processor {
     }
 
     async fn process(&self, input: StageInput) -> Result<koharu_scene::Patch> {
+        let page = input.scene.page(input.page)?;
+        let size = page.page()?;
         let mut targets = Vec::new();
-        if let Some(group) = input.scene.page(input.page)?.text_group()? {
+        let mut regions = Vec::new();
+        let mut boxes = Vec::new();
+        if let Some(group) = page.text_group()? {
             for layer in group.text_layers()? {
                 if !input.contains_entity(layer.id())? {
                     continue;
@@ -46,6 +50,19 @@ impl StageProcessor for Processor {
                     continue;
                 };
                 if !source.text.value.trim().is_empty() {
+                    // The OCR region is where the source text was read, so it is the
+                    // location that maps the segment back onto the page image.
+                    let region = content.source_region()?;
+                    let bounds = region
+                        .map(|region| region.geometry())
+                        .transpose()?
+                        .as_ref()
+                        .and_then(geometry_extents)
+                        .and_then(|extents| {
+                            SegmentBox::from_extents(extents, size.width, size.height)
+                        });
+                    regions.extend(region.map(|region| region.id()));
+                    boxes.push(bounds);
                     targets.push((content.id(), source.text.value));
                 }
             }
@@ -53,7 +70,8 @@ impl StageProcessor for Processor {
         let mut request = TranslationRequest::new(
             targets.iter().map(|(_, source)| source.clone()),
             self.config.target_language,
-        );
+        )
+        .with_boxes(boxes);
         if let Some(instructions) = self.config.instructions.as_deref() {
             request = request.with_instructions(instructions);
         }
@@ -72,6 +90,9 @@ impl StageProcessor for Processor {
         for (entity, _) in &targets {
             edit.observe::<SourceText>(*entity)?;
             edit.observe::<Translation>(*entity)?;
+        }
+        for region in regions {
+            edit.observe::<Geometry>(region)?;
         }
         for ((entity, source), text) in targets.into_iter().zip(translated) {
             if input

@@ -5,7 +5,7 @@ use indoc::indoc;
 use serde::{Deserialize, Deserializer, Serialize, de};
 use serde_json::{Value, json};
 
-use crate::{Language, TranslationContext, TranslationRequest};
+use crate::{Language, SegmentBox, TranslationContext, TranslationRequest};
 
 pub(crate) fn prompts(request: &TranslationRequest) -> anyhow::Result<(String, String)> {
     let input = TranslationInput {
@@ -16,7 +16,11 @@ pub(crate) fn prompts(request: &TranslationRequest) -> anyhow::Result<(String, S
             .segments
             .iter()
             .enumerate()
-            .map(|(id, text)| TranslationInputSegment { id, text })
+            .map(|(id, text)| TranslationInputSegment {
+                id,
+                text,
+                box_2d: request.boxes.get(id).copied().flatten(),
+            })
             .collect(),
     };
     let user = serde_json::to_string(&input).context("failed to serialize translation input")?;
@@ -150,6 +154,16 @@ fn translation_system_prompt(request: &TranslationRequest) -> String {
         "}.trim_end());
     }
 
+    let positioned = request.boxes.iter().any(Option::is_some);
+    if positioned {
+        prompt.push_str("\n\n");
+        prompt.push_str(indoc! {"
+            Position requirements:
+            - A segment's `box_2d` is its location on the page as [y_min, x_min, y_max, x_max], normalized to 0-1000.
+            - Segment IDs are not in reading order. Infer the natural reading order from the boxes (for Japanese manga: panels right to left, then top to bottom; within a panel, right to left) and use that order for dialogue continuity.
+        "}.trim_end());
+    }
+
     if request.image.is_some() {
         prompt.push_str("\n\n");
         prompt.push_str(indoc! {"
@@ -157,6 +171,14 @@ fn translation_system_prompt(request: &TranslationRequest) -> String {
             Use the attached original page image as visual context for speaker identity, tone, layout, and ambiguous OCR.
             Translate only the supplied segments; do not add text seen in the image that is absent from the input segments.
         "}.trim_end());
+        if positioned {
+            prompt.push_str("\n");
+            prompt.push_str(indoc! {"
+                - Look at the image region inside each segment's `box_2d` before translating it.
+                - If the region is stylized lettering drawn as art rather than text in a speech bubble or caption, treat the segment as a sound effect and translate it as a short sound effect.
+                - If the OCR text clearly disagrees with the lettering inside its box, translate what is actually written there.
+            "}.trim_end());
+        }
     }
 
     if let Some(instructions) = request
@@ -183,6 +205,8 @@ struct TranslationInput<'a> {
 struct TranslationInputSegment<'a> {
     id: usize,
     text: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    box_2d: Option<SegmentBox>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -366,6 +390,19 @@ mod tests {
         let prompt = translation_system_prompt(&request);
         assert!(prompt.contains("dialogue continuity"));
         assert!(prompt.contains("Do not translate or return the context"));
+    }
+
+    #[test]
+    fn segment_boxes_map_text_to_normalized_page_positions() {
+        let request = TranslationRequest::new(["a", "b"], Language::English).with_boxes([
+            SegmentBox::from_extents((600.0, 90.0, 900.0, 450.0), 1200.0, 1800.0),
+            None,
+        ]);
+        let (system, user) = prompts(&request).unwrap();
+        let input: serde_json::Value = serde_json::from_str(&user).unwrap();
+        assert_eq!(input["segments"][0]["box_2d"], json!([50, 500, 250, 750]));
+        assert!(input["segments"][1].get("box_2d").is_none());
+        assert!(system.contains("not in reading order"));
     }
 
     #[test]

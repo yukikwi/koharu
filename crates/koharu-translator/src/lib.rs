@@ -16,7 +16,7 @@ use koharu_ml::Device;
 use error::{Error, Result};
 use local::LocalTranslator;
 
-pub use backend::{TranslationContext, TranslationRequest};
+pub use backend::{SegmentBox, TranslationContext, TranslationRequest};
 pub use language::Language;
 pub use model::{GenerationConfig, Model, ModelSelection, Quantization};
 pub(crate) use model::{ModelGeneration, QuantizationDefinition, display_name};
@@ -117,6 +117,12 @@ impl Translator {
         }
 
         let expected = request.segments.len();
+        if !request.boxes.is_empty() && request.boxes.len() != expected {
+            anyhow::bail!(
+                "translation request has {} segment boxes for {expected} segments",
+                request.boxes.len()
+            );
+        }
         let translated = if provider == Provider::Local {
             self.local(selection)
                 .await?
