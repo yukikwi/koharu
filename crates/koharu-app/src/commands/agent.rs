@@ -7,12 +7,12 @@ use koharu_agent::{Account, Agent, Codex, CodexModel, Config, Control, Event, Lo
 use parking_lot::Mutex;
 use serde::Serialize;
 use specta::Type;
-use tauri::{AppHandle, Manager as _, State, ipc::Channel};
+use tauri::{AppHandle, WebviewWindow, ipc::Channel};
 use tauri_runtime_cef::CefRuntime;
 use tokio::sync::Notify;
 
 use self::host::KoharuHost;
-use super::Error;
+use super::{Error, workspace::Workspace};
 
 #[derive(Clone, Debug, Serialize, Type)]
 pub struct AgentStatus {
@@ -30,9 +30,9 @@ pub(crate) struct AgentState {
 }
 
 impl AgentState {
-    pub(crate) fn new(handle: AppHandle<CefRuntime>) -> Result<Self> {
+    pub(crate) fn new(codex: Codex, handle: AppHandle<CefRuntime>, window: String) -> Result<Self> {
         Ok(Self {
-            agent: Arc::new(Agent::new(Codex::new()?, KoharuHost::new(handle))?),
+            agent: Arc::new(Agent::new(codex, KoharuHost::new(handle, window))?),
             runs: Mutex::new(HashMap::new()),
             login: Mutex::new(None),
             idle: Notify::new(),
@@ -94,17 +94,19 @@ impl AgentState {
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn get_agent_status(
-    state: State<'_, AgentState>,
+    window: WebviewWindow<CefRuntime>,
 ) -> std::result::Result<AgentStatus, Error> {
-    Ok(state.status().await?)
+    Ok(Workspace::of(&window)?.agent.status().await?)
 }
 
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn login_agent(
-    state: State<'_, AgentState>,
+    window: WebviewWindow<CefRuntime>,
     on_event: Channel<LoginEvent>,
 ) -> std::result::Result<AgentStatus, Error> {
+    let workspace = Workspace::of(&window)?;
+    let state = &workspace.agent;
     let control = Control::default();
     {
         let mut login = state.login.lock();
@@ -136,8 +138,10 @@ pub(crate) async fn login_agent(
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn logout_agent(
-    state: State<'_, AgentState>,
+    window: WebviewWindow<CefRuntime>,
 ) -> std::result::Result<AgentStatus, Error> {
+    let workspace = Workspace::of(&window)?;
+    let state = &workspace.agent;
     state.reset().await;
     state.agent.codex().logout()?;
     Ok(state.status().await?)
@@ -147,9 +151,9 @@ pub(crate) async fn logout_agent(
 #[specta::specta]
 pub(crate) async fn save_agent_config(
     config: Config,
-    state: State<'_, AgentState>,
+    window: WebviewWindow<CefRuntime>,
 ) -> std::result::Result<Config, Error> {
-    Ok(state.agent.save_config(config)?)
+    Ok(Workspace::of(&window)?.agent.agent.save_config(config)?)
 }
 
 #[tauri::command]
@@ -157,9 +161,10 @@ pub(crate) async fn save_agent_config(
 pub(crate) async fn run_agent(
     prompt: String,
     on_event: Channel<Event>,
-    handle: AppHandle<CefRuntime>,
-    state: State<'_, AgentState>,
+    window: WebviewWindow<CefRuntime>,
 ) -> std::result::Result<RunId, Error> {
+    let workspace = Workspace::of(&window)?;
+    let state = &workspace.agent;
     let prompt = prompt.trim().to_owned();
     if prompt.is_empty() {
         return Err(anyhow!("message cannot be empty").into());
@@ -177,6 +182,7 @@ pub(crate) async fn run_agent(
         runs.insert(run, control.clone());
     }
     let agent = state.agent.clone();
+    let workspace = workspace.clone();
     drop(tauri::async_runtime::spawn(async move {
         let publish_control = control.clone();
         let result = agent
@@ -189,7 +195,7 @@ pub(crate) async fn run_agent(
         if let Err(error) = result {
             tracing::error!(%run, error = ?error, "agent request failed");
         }
-        let state = handle.state::<AgentState>();
+        let state = &workspace.agent;
         state.runs.lock().remove(&run);
         state.idle.notify_waiters();
     }));
@@ -200,9 +206,10 @@ pub(crate) async fn run_agent(
 #[specta::specta]
 pub(crate) async fn cancel_agent(
     run: RunId,
-    state: State<'_, AgentState>,
+    window: WebviewWindow<CefRuntime>,
 ) -> std::result::Result<(), Error> {
-    state
+    Workspace::of(&window)?
+        .agent
         .runs
         .lock()
         .get(&run)

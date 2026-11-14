@@ -1,17 +1,12 @@
 use anyhow::{Context as _, Result};
 use tauri::{AppHandle, Manager as _, WindowEvent};
 use tauri_runtime_cef::{Cef, CefRuntime};
-use tokio::sync::Mutex;
 
 use crate::commands::{
-    agent::AgentState,
-    canvas::CanvasChannel,
-    lifecycle::{
-        Download, DownloadChannel, DownloadState, Initialization, ModelResources, ProjectChannel,
-        ResourceChannel,
-    },
-    processing::{JobChannel, Processing},
-    project::{CurrentProject, ProjectLibrary},
+    ChannelExt as _,
+    lifecycle::{Download, DownloadState, Initialization, ModelResources},
+    project::ProjectLibrary,
+    workspace::{self, Workspaces},
 };
 
 pub(crate) async fn initialize(handle: AppHandle<CefRuntime>) -> Result<()> {
@@ -26,30 +21,12 @@ pub(crate) async fn initialize(handle: AppHandle<CefRuntime>) -> Result<()> {
     let resource_handle = handle.clone();
     drop(tauri::async_runtime::spawn(async move {
         while resources.changed().await.is_ok() {
-            let snapshot = resources.borrow_and_update().clone();
-            let resources = resource_handle.state::<ResourceChannel>();
-            let mut channel = resources.channel.lock();
-            if let Some(current) = channel.as_ref()
-                && current.send(ModelResources::from(snapshot)).is_err()
-            {
-                channel.take();
+            let snapshot = ModelResources::from(resources.borrow_and_update().clone());
+            for workspace in resource_handle.state::<Workspaces>().all() {
+                workspace.resource_channel.publish(snapshot.clone());
             }
         }
     }));
-
-    let project = handle
-        .state::<CurrentProject>()
-        .project
-        .lock()
-        .await
-        .as_ref()
-        .map(|project| (project.snapshot(), project.active_page()));
-    let desktop = handle.state::<koharu_desktop::Desktop>();
-    if let Some((snapshot, page)) = project {
-        desktop.show_page(&snapshot, page).await?;
-    } else {
-        desktop.clear().await;
-    }
     Ok(())
 }
 
@@ -81,10 +58,8 @@ pub fn run(context: tauri::Context<CefRuntime>) -> Result<()> {
                 .build(),
         )
         .plugin(tauri_plugin_single_instance::init(|handle, _, _| {
-            if let Some(window) = handle.get_webview_window("main") {
-                let _ = window.unminimize();
-                let _ = window.show();
-                let _ = window.set_focus();
+            if let Some(label) = handle.webview_windows().into_keys().next() {
+                workspace::focus_window(handle, &label);
             }
         }))
         .plugin(
@@ -111,36 +86,12 @@ pub fn run(context: tauri::Context<CefRuntime>) -> Result<()> {
                     .join("store"),
             )?;
 
-            application.manage(CurrentProject {
-                project: Mutex::new(None),
-            });
             application.manage(ProjectLibrary::new()?);
-            application.manage(Processing::default());
-            application.manage(CanvasChannel::default());
-            application.manage(JobChannel::default());
-            application.manage(DownloadChannel::default());
-            application.manage(ResourceChannel::default());
-            application.manage(ProjectChannel::default());
             application.manage(Initialization::default());
+            application.manage(Workspaces::new()?);
 
             let handle = application.handle().clone();
-            application.manage(koharu_desktop::Desktop::new()?);
-            application.manage(AgentState::new(handle.clone())?);
-
-            let window_config = application
-                .config()
-                .app
-                .windows
-                .iter()
-                .find(|window| window.label == "main")
-                .context("the main Tauri window configuration is unavailable")?;
-            let window = tauri::WebviewWindowBuilder::from_config(application, window_config)?
-                .build()
-                .context("failed to create the main window")?;
-            window.show().context("failed to show the main window")?;
-            window
-                .set_focus()
-                .context("failed to focus the main window")?;
+            workspace::create_window(&handle, true)?;
             let initialization_handle = handle.clone();
             drop(tauri::async_runtime::spawn(async move {
                 initialize(initialization_handle.clone())
@@ -196,12 +147,8 @@ pub fn run(context: tauri::Context<CefRuntime>) -> Result<()> {
                                     }
                                 }
                             };
-                            let downloads = download_handle.state::<DownloadChannel>();
-                            let mut channel = downloads.channel.lock();
-                            if let Some(current) = channel.as_ref()
-                                && current.send(download).is_err()
-                            {
-                                channel.take();
+                            for workspace in download_handle.state::<Workspaces>().all() {
+                                workspace.download_channel.publish(download.clone());
                             }
                         }
                         Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped)) => {
@@ -215,17 +162,13 @@ pub fn run(context: tauri::Context<CefRuntime>) -> Result<()> {
             Ok(())
         })
         .on_window_event(|window, event| {
-            if matches!(
-                event,
-                WindowEvent::CloseRequested { .. } | WindowEvent::Destroyed
-            ) {
-                let processing = window.state::<Processing>();
-                for stop in processing.stops.lock().values() {
-                    stop.stop();
-                }
-                processing.stops.lock().clear();
-                processing.jobs.lock().clear();
-                window.state::<AgentState>().cancel_all();
+            // The window's project closes once its last in-flight command or job
+            // releases the workspace.
+            if matches!(event, WindowEvent::Destroyed)
+                && let Some(workspace) = window.state::<Workspaces>().remove(window.label())
+            {
+                workspace.stop();
+                workspace.agent.cancel_all();
             }
         })
         .run(context)?;

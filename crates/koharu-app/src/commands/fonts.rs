@@ -5,10 +5,10 @@ use koharu_renderer::{
 use koharu_scene::FontStyle;
 use serde::Serialize;
 use specta::Type;
-use tauri::{State, ipc::IpcResponse};
+use tauri::{WebviewWindow, ipc::IpcResponse};
+use tauri_runtime_cef::CefRuntime;
 
-use super::Error;
-use koharu_desktop::Desktop;
+use super::{Error, workspace::Workspace};
 
 #[derive(Clone, Debug, Serialize, Type)]
 pub struct FontFamily {
@@ -62,9 +62,10 @@ impl IpcResponse for FontPreviewBytes {
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn get_fonts(
-    desktop: State<'_, Desktop>,
+    window: WebviewWindow<CefRuntime>,
 ) -> std::result::Result<Vec<FontFamily>, Error> {
-    Ok(desktop
+    Ok(Workspace::of(&window)?
+        .desktop
         .renderer()
         .available_fonts()
         .await?
@@ -124,8 +125,10 @@ impl From<RenderFontRange> for FontRange {
 #[specta::specta]
 pub(crate) async fn get_font_preview(
     family_name: String,
-    desktop: State<'_, Desktop>,
+    window: WebviewWindow<CefRuntime>,
 ) -> std::result::Result<FontPreviewBytes, Error> {
+    let workspace = Workspace::of(&window)?;
+    let desktop = &workspace.desktop;
     let renderer = desktop.renderer();
     let rasterizer = desktop.rasterizer().await?;
     Ok(FontPreviewBytes(

@@ -12,11 +12,10 @@ use rayon::prelude::*;
 use serde::Deserialize;
 use specta::Type;
 use std::{io::Write as _, sync::Arc};
-use tauri::{State, WebviewWindow, ipc::IpcResponse};
+use tauri::{WebviewWindow, ipc::IpcResponse};
 use tauri_runtime_cef::CefRuntime;
 
-use super::{Error, project::CurrentProject};
-use koharu_desktop::Desktop;
+use super::{Error, workspace::Workspace};
 
 const THUMBNAIL_EDGE: u32 = 128;
 
@@ -43,11 +42,11 @@ pub enum ExportFormat {
 pub(crate) async fn export(
     window: WebviewWindow<CefRuntime>,
     format: ExportFormat,
-    project: State<'_, CurrentProject>,
-    desktop: State<'_, Desktop>,
 ) -> std::result::Result<(), Error> {
+    let workspace = Workspace::of(&window)?;
+    let desktop = &workspace.desktop;
     let (name, snapshot) = {
-        let project = project.project.lock().await;
+        let project = workspace.project.lock().await;
         let project = project.as_ref().context("no project is open")?;
         (project.name.clone(), project.snapshot())
     };
@@ -160,9 +159,10 @@ pub(crate) async fn export(
 #[specta::specta]
 pub(crate) async fn get_thumbnail(
     page: EntityId,
-    project: State<'_, CurrentProject>,
+    window: WebviewWindow<CefRuntime>,
 ) -> std::result::Result<ThumbnailBytes, Error> {
-    let snapshot = project
+    let workspace = Workspace::of(&window)?;
+    let snapshot = workspace
         .project
         .lock()
         .await

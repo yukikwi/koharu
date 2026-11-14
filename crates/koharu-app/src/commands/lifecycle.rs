@@ -1,24 +1,19 @@
 use anyhow::{Context as _, Result};
-use koharu_desktop::{CanvasState, Desktop};
+use koharu_desktop::CanvasState;
 use koharu_scene::{AssetInput, AssetMetadata, AssetRole, At, PageDraft};
-use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use strum::{EnumMessage as _, IntoEnumIterator as _};
-use tauri::{AppHandle, Manager as _, State, WebviewWindow, ipc::Channel};
+use tauri::{Manager as _, State, WebviewWindow, ipc::Channel};
 use tauri_runtime_cef::CefRuntime;
 use walkdir::WalkDir;
 
 use super::{
-    ChannelExt as _, Error,
-    agent::AgentState,
-    canvas::CanvasChannel,
-    import,
+    ChannelExt as _, Error, import,
     preferences::Preferences,
-    processing::{Job, JobChannel, Processing},
-    project::{
-        CurrentProject, Page, PageSummary, Project, ProjectInfo, ProjectLibrary, ProjectSummary,
-    },
+    processing::Job,
+    project::{Page, PageSummary, Project, ProjectInfo, ProjectLibrary, ProjectSummary},
+    workspace::{Workspace, Workspaces, focus_window},
 };
 
 #[derive(Clone, Debug, Serialize, Type)]
@@ -82,11 +77,6 @@ pub struct Download {
     pub error: Option<String>,
 }
 
-#[derive(Default)]
-pub(crate) struct DownloadChannel {
-    pub(crate) channel: Mutex<Option<Channel<Download>>>,
-}
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum DownloadState {
@@ -103,16 +93,6 @@ pub struct ModelResources {
     pub system_memory: u64,
     pub process_cpu: f32,
     pub devices: Vec<DeviceResources>,
-}
-
-#[derive(Default)]
-pub(crate) struct ResourceChannel {
-    pub(crate) channel: Mutex<Option<Channel<ModelResources>>>,
-}
-
-#[derive(Default)]
-pub(crate) struct ProjectChannel {
-    pub(crate) channel: Mutex<Option<Channel<Option<ProjectInfo>>>>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Type)]
@@ -150,78 +130,69 @@ impl From<koharu_pipeline::ResourceSnapshot> for ModelResources {
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn subscribe(
-    handle: AppHandle<CefRuntime>,
+    window: WebviewWindow<CefRuntime>,
     on_canvas: Channel<CanvasState>,
     on_job: Channel<Job>,
     on_download: Channel<Download>,
     on_resources: Channel<ModelResources>,
     on_project: Channel<Option<ProjectInfo>>,
 ) -> std::result::Result<StartupState, Error> {
-    handle.state::<Initialization>().wait().await?;
+    window.state::<Initialization>().wait().await?;
 
-    *handle.state::<CanvasChannel>().channel.lock() = Some(on_canvas);
-    *handle.state::<JobChannel>().channel.lock() = Some(on_job);
-    *handle.state::<DownloadChannel>().channel.lock() = Some(on_download);
-    *handle.state::<ResourceChannel>().channel.lock() = Some(on_resources);
-    *handle.state::<ProjectChannel>().channel.lock() = Some(on_project);
+    let workspace = Workspace::of(&window)?;
+    *workspace.canvas_channel.lock() = Some(on_canvas);
+    *workspace.job_channel.lock() = Some(on_job);
+    *workspace.download_channel.lock() = Some(on_download);
+    *workspace.resource_channel.lock() = Some(on_resources);
+    *workspace.project_channel.lock() = Some(on_project);
 
-    let canvas = handle.state::<Desktop>().canvas_state();
+    let canvas = workspace.desktop.canvas_state();
     let preferences = Preferences::load()?;
     Ok(StartupState {
         preferences,
-        jobs: handle
-            .state::<Processing>()
-            .jobs
-            .lock()
-            .values()
-            .cloned()
-            .collect(),
+        jobs: workspace.processing.jobs.lock().values().cloned().collect(),
         canvas,
     })
 }
 
-async fn replace_project(handle: &AppHandle<CefRuntime>, opened: Project) -> Result<()> {
+async fn replace_project(window: &WebviewWindow<CefRuntime>, opened: Project) -> Result<()> {
+    let workspace = Workspace::of(window)?;
     let snapshot = opened.snapshot();
     let page = opened.active_page();
     let info = opened.info();
+    let title = format!("{} - Koharu", opened.name);
 
-    handle.state::<AgentState>().reset().await;
-    let processing = handle.state::<Processing>();
-    for stop in processing.stops.lock().values() {
-        stop.stop();
-    }
-    processing.stops.lock().clear();
-    processing.jobs.lock().clear();
+    workspace.agent.reset().await;
+    workspace.stop();
 
-    let previous = {
-        let current = handle.state::<CurrentProject>();
-        let mut current = current.project.lock().await;
-        current.replace(opened)
-    };
+    let previous = workspace.project.lock().await.replace(opened);
 
-    let desktop = handle.state::<Desktop>();
+    let desktop = &workspace.desktop;
     desktop.show_page(&snapshot, page).await?;
     let canvas = desktop.canvas_state();
     drop(previous);
-    handle.state::<CanvasChannel>().channel.publish(canvas);
-    handle.state::<ProjectChannel>().channel.publish(Some(info));
+    workspace.canvas_channel.publish(canvas);
+    workspace.project_channel.publish(Some(info));
+    window.set_title(&title)?;
     Ok(())
 }
 
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn get_project(
-    project: State<'_, CurrentProject>,
+    window: WebviewWindow<CefRuntime>,
 ) -> std::result::Result<Option<ProjectInfo>, Error> {
-    Ok(project.project.lock().await.as_ref().map(Project::info))
+    let workspace = Workspace::of(&window)?;
+    Ok(workspace.project.lock().await.as_ref().map(Project::info))
 }
 
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn get_pages(
-    project: State<'_, CurrentProject>,
+    window: WebviewWindow<CefRuntime>,
 ) -> std::result::Result<Vec<PageSummary>, Error> {
-    let snapshot = project
+    let workspace = Workspace::of(&window)?;
+    let snapshot = workspace
         .project
         .lock()
         .await
@@ -234,10 +205,11 @@ pub(crate) async fn get_pages(
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn get_page(
-    project: State<'_, CurrentProject>,
+    window: WebviewWindow<CefRuntime>,
 ) -> std::result::Result<Option<Page>, Error> {
+    let workspace = Workspace::of(&window)?;
     let current = {
-        let project = project.project.lock().await;
+        let project = workspace.project.lock().await;
         project
             .as_ref()
             .map(|project| (project.snapshot(), project.active_page()))
@@ -260,30 +232,41 @@ pub(crate) async fn list_projects(
 #[specta::specta]
 pub(crate) async fn create_project(
     name: String,
-    handle: AppHandle<CefRuntime>,
+    window: WebviewWindow<CefRuntime>,
 ) -> std::result::Result<(), Error> {
-    let library = handle.state::<ProjectLibrary>().inner().clone();
+    let library = window.state::<ProjectLibrary>().inner().clone();
     let opened = library.create(&name).await?;
-    replace_project(&handle, opened).await?;
+    replace_project(&window, opened).await?;
     Ok(())
 }
 
+/// A project is edited in one window at a time; opening it again focuses that window.
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn open_project(
     name: String,
-    handle: AppHandle<CefRuntime>,
+    window: WebviewWindow<CefRuntime>,
 ) -> std::result::Result<(), Error> {
-    let library = handle.state::<ProjectLibrary>().inner().clone();
+    if let Some(label) = window
+        .state::<Workspaces>()
+        .find_project(&name, window.label())
+        .await
+    {
+        focus_window(window.app_handle(), &label);
+        return Ok(());
+    }
+    let library = window.state::<ProjectLibrary>().inner().clone();
     let opened = library.open(&name).await?;
-    replace_project(&handle, opened).await?;
+    replace_project(&window, opened).await?;
     Ok(())
 }
 
 #[tauri::command]
 #[specta::specta]
-pub(crate) async fn close_project(handle: AppHandle<CefRuntime>) -> std::result::Result<(), Error> {
-    close_current_project(&handle).await?;
+pub(crate) async fn close_project(
+    window: WebviewWindow<CefRuntime>,
+) -> std::result::Result<(), Error> {
+    close_current_project(&window).await?;
     Ok(())
 }
 
@@ -291,44 +274,34 @@ pub(crate) async fn close_project(handle: AppHandle<CefRuntime>) -> std::result:
 #[specta::specta]
 pub(crate) async fn delete_project(
     name: String,
-    handle: AppHandle<CefRuntime>,
+    window: WebviewWindow<CefRuntime>,
 ) -> std::result::Result<(), Error> {
-    let active = handle
-        .state::<CurrentProject>()
-        .project
-        .lock()
-        .await
-        .as_ref()
-        .is_some_and(|project| project.name == name);
-    if active {
-        close_current_project(&handle).await?;
+    for workspace in window.state::<Workspaces>().all() {
+        if workspace.project_name().await.as_deref() == Some(name.as_str())
+            && let Some(owner) = window.app_handle().get_webview_window(&workspace.label)
+        {
+            close_current_project(&owner).await?;
+        }
     }
-    let library = handle.state::<ProjectLibrary>().inner().clone();
+    let library = window.state::<ProjectLibrary>().inner().clone();
     tokio::task::spawn_blocking(move || library.delete(&name))
         .await
         .context("project deletion task failed")??;
     Ok(())
 }
 
-async fn close_current_project(handle: &AppHandle<CefRuntime>) -> Result<()> {
-    handle.state::<AgentState>().reset().await;
-    let processing = handle.state::<Processing>();
-    for stop in processing.stops.lock().values() {
-        stop.stop();
-    }
-    processing.stops.lock().clear();
-    processing.jobs.lock().clear();
-    let previous = {
-        let current = handle.state::<CurrentProject>();
-        let mut current = current.project.lock().await;
-        current.take()
-    };
-    let desktop = handle.state::<Desktop>();
+async fn close_current_project(window: &WebviewWindow<CefRuntime>) -> Result<()> {
+    let workspace = Workspace::of(window)?;
+    workspace.agent.reset().await;
+    workspace.stop();
+    let previous = workspace.project.lock().await.take();
+    let desktop = &workspace.desktop;
     desktop.clear().await;
     let result = desktop.canvas_state();
     drop(previous);
-    handle.state::<CanvasChannel>().channel.publish(result);
-    handle.state::<ProjectChannel>().channel.publish(None);
+    workspace.canvas_channel.publish(result);
+    workspace.project_channel.publish(None);
+    window.set_title("Koharu")?;
     Ok(())
 }
 
@@ -337,11 +310,10 @@ async fn close_current_project(handle: &AppHandle<CefRuntime>) -> Result<()> {
 pub(crate) async fn import(
     source: PageImportSource,
     window: WebviewWindow<CefRuntime>,
-    desktop: State<'_, Desktop>,
-    project: State<'_, CurrentProject>,
-    processing: State<'_, Processing>,
-    canvas_channel: State<'_, CanvasChannel>,
 ) -> std::result::Result<(), Error> {
+    let workspace = Workspace::of(&window)?;
+    let desktop = &workspace.desktop;
+    let processing = &workspace.processing;
     if !processing.stops.lock().is_empty() {
         return Err(anyhow::anyhow!("pages cannot be imported while processing is running").into());
     }
@@ -387,7 +359,7 @@ pub(crate) async fn import(
     let pages = tokio_rayon::spawn(move || import::import(files)).await?;
 
     let (commit, page) = {
-        let mut project = project.project.lock().await;
+        let mut project = workspace.project.lock().await;
         let project = project.as_mut().context("no project is open")?;
         let source = AssetRole::new("source")?;
         let patch = project.snapshot().patch(|edit| {
@@ -424,20 +396,20 @@ pub(crate) async fn import(
     };
     desktop.synchronize(&commit.snapshot, page, &commit).await?;
     let canvas = desktop.canvas_state();
-    canvas_channel.channel.publish(canvas);
+    workspace.canvas_channel.publish(canvas);
     Ok(())
 }
 
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn select_page(
-    desktop: State<'_, Desktop>,
     page: koharu_scene::EntityId,
-    project: State<'_, CurrentProject>,
-    canvas_channel: State<'_, CanvasChannel>,
+    window: WebviewWindow<CefRuntime>,
 ) -> std::result::Result<PageSelection, Error> {
+    let workspace = Workspace::of(&window)?;
+    let desktop = &workspace.desktop;
     let (snapshot, project_info, selected_page) = {
-        let mut project = project.project.lock().await;
+        let mut project = workspace.project.lock().await;
         let project = project.as_mut().context("no project is open")?;
         project.select_page(page)?;
         let snapshot = project.snapshot();
@@ -447,7 +419,7 @@ pub(crate) async fn select_page(
     };
     if desktop.show_page(&snapshot, Some(page)).await? {
         let canvas = desktop.canvas_state();
-        canvas_channel.channel.publish(canvas);
+        workspace.canvas_channel.publish(canvas);
     }
     Ok(PageSelection {
         project: project_info,

@@ -1,10 +1,14 @@
-use std::{future::Future, pin::Pin, sync::OnceLock};
+use std::{
+    future::Future,
+    pin::Pin,
+    sync::{Arc, OnceLock},
+};
 
 use anyhow::{Context as _, Result, anyhow, bail};
 use async_trait::async_trait;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use koharu_agent::{Control, Host, Invocation, Tool, ToolCall};
-use koharu_desktop::{Desktop, Frame};
+use koharu_desktop::Frame;
 use koharu_pipeline::{Committer, Operation, RunStatus, Scope, Stage, StageOutput, StopToken};
 use koharu_scene::{Commit, EntityId, Snapshot};
 use schemars::{JsonSchema, schema_for};
@@ -15,28 +19,35 @@ use tauri_runtime_cef::CefRuntime;
 
 use crate::commands::{
     ChannelExt as _,
-    canvas::{CanvasChannel, Point},
+    canvas::Point,
     editing::{GeometryUpdate, TypographyUpdate},
     output,
     preferences::Preferences,
-    processing::{JobId, Processing},
-    project::{CurrentProject, Project, Typography},
+    processing::JobId,
+    project::{Project, Typography},
+    workspace::{Workspace, Workspaces},
 };
 
+/// Agent tools act on the project of the window that owns the conversation.
 #[derive(Clone)]
 pub(super) struct KoharuHost {
     handle: AppHandle<CefRuntime>,
+    window: String,
 }
 
 impl KoharuHost {
-    pub(super) fn new(handle: AppHandle<CefRuntime>) -> Self {
-        Self { handle }
+    pub(super) fn new(handle: AppHandle<CefRuntime>, window: String) -> Self {
+        Self { handle, window }
+    }
+
+    fn workspace(&self) -> Result<Arc<Workspace>> {
+        self.handle.state::<Workspaces>().get(&self.window)
     }
 
     async fn project_context(&self) -> Result<Value> {
+        let workspace = self.workspace()?;
         let (project, pages) = {
-            let current = self.handle.state::<CurrentProject>();
-            let current = current.project.lock().await;
+            let current = workspace.project.lock().await;
             let project = current.as_ref().context("no project is open")?;
             let snapshot = project.snapshot();
             let pages = Project::pages(&snapshot)?
@@ -46,12 +57,7 @@ impl KoharuHost {
             (project.info(), pages)
         };
         let preferences = Preferences::load()?;
-        let fonts = self
-            .handle
-            .state::<Desktop>()
-            .renderer()
-            .available_fonts()
-            .await?;
+        let fonts = workspace.desktop.renderer().available_fonts().await?;
         let providers = preferences
             .providers
             .entries
@@ -90,9 +96,9 @@ impl KoharuHost {
     where
         T: serde::Serialize + Send,
     {
+        let workspace = self.workspace()?;
         let (commit, value, page, project) = {
-            let current = self.handle.state::<CurrentProject>();
-            let mut current = current.project.lock().await;
+            let mut current = workspace.project.lock().await;
             let project = current.as_mut().context("no project is open")?;
             let (commit, value) = mutation(project).await?;
             project.record_commit(&commit);
@@ -100,7 +106,7 @@ impl KoharuHost {
             (commit, value, project.active_page(), project.info())
         };
         let revision = commit.revision;
-        self.synchronize(commit, page).await?;
+        synchronize(&workspace, commit, page).await?;
         Invocation::changed(json!({
             "revision": revision,
             "project": project,
@@ -108,20 +114,11 @@ impl KoharuHost {
         }))
     }
 
-    async fn synchronize(&self, commit: Commit, page: Option<EntityId>) -> Result<()> {
-        let desktop = self.handle.state::<Desktop>();
-        desktop.synchronize(&commit.snapshot, page, &commit).await?;
-        let canvas = desktop.canvas_state();
-        self.handle.state::<CanvasChannel>().channel.publish(canvas);
-        Ok(())
-    }
-
     async fn run_pipeline(&self, arguments: RunPipeline, control: &Control) -> Result<Invocation> {
         let scope = arguments.scope()?;
         let operation = arguments.operation.into();
-        let snapshot = self
-            .handle
-            .state::<CurrentProject>()
+        let workspace = self.workspace()?;
+        let snapshot = workspace
             .project
             .lock()
             .await
@@ -131,8 +128,7 @@ impl KoharuHost {
         let job = JobId::new();
         let stop = StopToken::default();
         {
-            let processing = self.handle.state::<Processing>();
-            let mut stops = processing.stops.lock();
+            let mut stops = workspace.processing.stops.lock();
             if !stops.is_empty() {
                 bail!("another pipeline process is already running");
             }
@@ -147,7 +143,9 @@ impl KoharuHost {
                 stop.stop();
             }
         });
-        let mut committer = AgentCommitter { host: self.clone() };
+        let mut committer = AgentCommitter {
+            workspace: workspace.clone(),
+        };
         let request = koharu_pipeline::Request {
             operation,
             scope,
@@ -161,7 +159,7 @@ impl KoharuHost {
             .execute(snapshot, request, &mut committer)
             .await;
         watcher.abort();
-        self.handle.state::<Processing>().stops.lock().remove(&job);
+        workspace.processing.stops.lock().remove(&job);
         let report = result.map_err(|error| anyhow!(error))?;
         if report.status == RunStatus::Stopped {
             bail!("pipeline processing was cancelled");
@@ -239,15 +237,15 @@ impl Host for KoharuHost {
             "view_page" => {
                 let arguments: ViewPage = arguments(&call)?;
                 let page = entity(&arguments.page)?;
+                let workspace = self.workspace()?;
                 let (label, snapshot) = {
-                    let current = self.handle.state::<CurrentProject>();
-                    let current = current.project.lock().await;
+                    let current = workspace.project.lock().await;
                     let project = current.as_ref().context("no project is open")?;
                     let snapshot = project.snapshot();
                     let label = snapshot.page(page)?.page()?.label;
                     (label, snapshot)
                 };
-                let desktop = self.handle.state::<Desktop>();
+                let desktop = &workspace.desktop;
                 let renderer = desktop.renderer();
                 let rasterizer = desktop.rasterizer().await?;
                 let bytes =
@@ -451,15 +449,14 @@ impl Host for KoharuHost {
 }
 
 struct AgentCommitter {
-    host: KoharuHost,
+    workspace: Arc<Workspace>,
 }
 
 #[async_trait]
 impl Committer for AgentCommitter {
     async fn commit(&mut self, output: StageOutput) -> Result<Snapshot> {
         let (commit, page) = {
-            let current = self.host.handle.state::<CurrentProject>();
-            let mut current = current.project.lock().await;
+            let mut current = self.workspace.project.lock().await;
             let project = current.as_mut().context("no project is open")?;
             let Some(commit) = project.commit_rebased(output.patch).await? else {
                 return Ok(project.snapshot());
@@ -468,9 +465,16 @@ impl Committer for AgentCommitter {
             (commit, project.active_page())
         };
         let snapshot = commit.snapshot.clone();
-        self.host.synchronize(commit, page).await?;
+        synchronize(&self.workspace, commit, page).await?;
         Ok(snapshot)
     }
+}
+
+async fn synchronize(workspace: &Workspace, commit: Commit, page: Option<EntityId>) -> Result<()> {
+    let desktop = &workspace.desktop;
+    desktop.synchronize(&commit.snapshot, page, &commit).await?;
+    workspace.canvas_channel.publish(desktop.canvas_state());
+    Ok(())
 }
 
 fn definition<T: JsonSchema>(name: &str, description: &str) -> Tool {

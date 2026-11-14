@@ -6,12 +6,11 @@ use koharu_scene::Snapshot;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use specta::Type;
-use tauri::{AppHandle, Manager as _, State, ipc::Channel};
+use tauri::{Manager as _, WebviewWindow};
 use tauri_runtime_cef::CefRuntime;
 use uuid::Uuid;
 
-use super::{ChannelExt as _, Error, canvas::CanvasChannel, project::CurrentProject};
-use koharu_desktop::Desktop;
+use super::{ChannelExt as _, Error, workspace::Workspace};
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, Type)]
 #[serde(transparent)]
@@ -66,23 +65,25 @@ pub(crate) struct Processing {
     pub(crate) inpainting_mask: Mutex<Option<koharu_pipeline::InpaintingMask>>,
 }
 
-#[derive(Default)]
-pub(crate) struct JobChannel {
-    pub(crate) channel: Mutex<Option<Channel<Job>>>,
-}
-
 #[tauri::command]
 #[specta::specta]
-#[allow(clippy::too_many_arguments)]
 pub(crate) async fn process(
-    handle: AppHandle<CefRuntime>,
+    window: WebviewWindow<CefRuntime>,
     scope: koharu_pipeline::Scope,
     operation: koharu_pipeline::Operation,
-    project: State<'_, CurrentProject>,
-    processing: State<'_, Processing>,
-    job_channel: State<'_, JobChannel>,
 ) -> std::result::Result<JobId, Error> {
-    let snapshot = project
+    let pipeline = window.state::<koharu_pipeline::Pipeline>().inner().clone();
+    Ok(start(Workspace::of(&window)?, pipeline, scope, operation).await?)
+}
+
+pub(crate) async fn start(
+    workspace: Arc<Workspace>,
+    pipeline: koharu_pipeline::Pipeline,
+    scope: koharu_pipeline::Scope,
+    operation: koharu_pipeline::Operation,
+) -> Result<JobId> {
+    let processing = &workspace.processing;
+    let snapshot = workspace
         .project
         .lock()
         .await
@@ -94,7 +95,7 @@ pub(crate) async fn process(
     {
         let mut stops = processing.stops.lock();
         if !stops.is_empty() {
-            return Err(anyhow::anyhow!("another process is already running").into());
+            anyhow::bail!("another process is already running");
         }
         stops.insert(id, stop.clone());
     }
@@ -109,14 +110,13 @@ pub(crate) async fn process(
         error: None,
     };
     processing.jobs.lock().insert(id, job.clone());
-    job_channel.channel.publish(job);
+    workspace.job_channel.publish(job);
 
-    let pipeline = handle.state::<koharu_pipeline::Pipeline>().inner().clone();
-    let task_handle = handle.clone();
+    let task_workspace = workspace.clone();
     let inpainting_mask = processing.inpainting_mask.lock().take();
     drop(tokio::spawn(async move {
         let progress = Arc::new(Mutex::new((0_usize, 0_usize)));
-        let progress_handle = task_handle.clone();
+        let progress_workspace = task_workspace.clone();
         let mut request = koharu_pipeline::Request {
             operation,
             scope,
@@ -151,8 +151,7 @@ pub(crate) async fn process(
             };
             if let Some((completed, total, page, stage, model)) = update {
                 let job = {
-                    let processing = progress_handle.state::<Processing>();
-                    let mut jobs = processing.jobs.lock();
+                    let mut jobs = progress_workspace.processing.jobs.lock();
                     jobs.get_mut(&id).map(|job| {
                         job.completed = completed;
                         job.total = total;
@@ -163,21 +162,20 @@ pub(crate) async fn process(
                     })
                 };
                 if let Some(job) = job {
-                    progress_handle.state::<JobChannel>().channel.publish(job);
+                    progress_workspace.job_channel.publish(job);
                 }
             }
         }));
 
         struct PipelineCommitter {
-            handle: AppHandle<CefRuntime>,
+            workspace: Arc<Workspace>,
         }
 
         #[async_trait::async_trait]
         impl Committer for PipelineCommitter {
             async fn commit(&mut self, output: StageOutput) -> Result<Snapshot> {
                 let (commit, page) = {
-                    let projects = self.handle.state::<CurrentProject>();
-                    let mut projects = projects.project.lock().await;
+                    let mut projects = self.workspace.project.lock().await;
                     let project = projects.as_mut().context("no project is open")?;
                     let Some(commit) = project.commit_rebased(output.patch).await? else {
                         return Ok(project.snapshot());
@@ -187,16 +185,17 @@ pub(crate) async fn process(
                     (commit, page)
                 };
                 let snapshot = commit.snapshot.clone();
-                let desktop = self.handle.state::<Desktop>();
+                let desktop = &self.workspace.desktop;
                 desktop.synchronize(&commit.snapshot, page, &commit).await?;
-                let canvas = desktop.canvas_state();
-                self.handle.state::<CanvasChannel>().channel.publish(canvas);
+                self.workspace
+                    .canvas_channel
+                    .publish(desktop.canvas_state());
                 Ok(snapshot)
             }
         }
 
         let mut committer = PipelineCommitter {
-            handle: task_handle.clone(),
+            workspace: task_workspace.clone(),
         };
         let result = pipeline.execute(snapshot, request, &mut committer).await;
         let (stopped, error) = match result {
@@ -206,9 +205,9 @@ pub(crate) async fn process(
                 (false, Some(format!("{error:#}")))
             }
         };
-        task_handle.state::<Processing>().stops.lock().remove(&id);
-        let job = task_handle
-            .state::<Processing>()
+        task_workspace.processing.stops.lock().remove(&id);
+        let job = task_workspace
+            .processing
             .jobs
             .lock()
             .remove(&id)
@@ -224,7 +223,7 @@ pub(crate) async fn process(
                 job
             });
         if let Some(job) = job {
-            task_handle.state::<JobChannel>().channel.publish(job);
+            task_workspace.job_channel.publish(job);
         }
     }));
     Ok(id)
@@ -234,9 +233,10 @@ pub(crate) async fn process(
 #[specta::specta]
 pub(crate) async fn stop_job(
     job: JobId,
-    processing: State<'_, Processing>,
+    window: WebviewWindow<CefRuntime>,
 ) -> std::result::Result<(), Error> {
-    let stops = processing.stops.lock();
+    let workspace = Workspace::of(&window)?;
+    let stops = workspace.processing.stops.lock();
     let stop = stops
         .get(&job)
         .with_context(|| format!("job {job} is not running"))?;

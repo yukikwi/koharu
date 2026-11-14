@@ -1,7 +1,7 @@
 'use client'
 
 import { openUrl } from '@tauri-apps/plugin-opener'
-import { FilePlus2, FolderOpen, LoaderCircle, Settings } from 'lucide-react'
+import { AppWindow, FilePlus2, FolderOpen, LoaderCircle, Settings } from 'lucide-react'
 import Image from 'next/image'
 import { useState, type ComponentProps } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -88,6 +88,11 @@ export function TitleBar() {
           <MenubarMenu>
             <MenubarTrigger>{t('menu.file')}</MenubarTrigger>
             <MenubarContent>
+              <MenubarItem onClick={() => void call(commands.openWindow).catch(() => undefined)}>
+                <AppWindow />
+                {t('menu.newWindow')}
+              </MenubarItem>
+              <MenubarSeparator />
               <MenubarSub>
                 <MenubarSubTrigger
                   disabled={!project || importing}

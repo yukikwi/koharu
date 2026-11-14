@@ -4,17 +4,16 @@ use anyhow::{Context as _, Result, anyhow, bail};
 use image::{DynamicImage, ImageFormat, RgbaImage};
 use koharu_desktop::Frame;
 use koharu_scene::{
-    AssetInput, AssetMetadata, AssetRole, At, Authored, Commit, EntityId, EntityOrigin,
-    FitsTo, Geometry as SceneGeometry, Group as SceneGroup, Origin, PageDraft, Point as ScenePoint,
+    AssetInput, AssetMetadata, AssetRole, At, Authored, Commit, EntityId, EntityOrigin, FitsTo,
+    Geometry as SceneGeometry, Group as SceneGroup, Origin, PageDraft, Point as ScenePoint,
     Presents, RasterLayer as SceneRasterLayer, RasterLayerKind, RecognizedFrom,
-    Region as SceneRegion, RegionSpec, RemovePolicy, Revision, Session, Snapshot, SourceText as SceneSourceText,
-    TextGroup as SceneTextGroup, TextLayout as SceneTextLayout, TextLayoutKind, TextRegion,
-    TextRole as SceneTextRole,
-    Translation as SceneTranslation, Typography as SceneTypography, Visibility as SceneVisibility,
+    Region as SceneRegion, RegionSpec, RemovePolicy, Revision, Session, Snapshot,
+    SourceText as SceneSourceText, TextGroup as SceneTextGroup, TextLayout as SceneTextLayout,
+    TextLayoutKind, TextRegion, TextRole as SceneTextRole, Translation as SceneTranslation,
+    Typography as SceneTypography, Visibility as SceneVisibility,
 };
 use serde::Serialize;
 use specta::Type;
-use tokio::sync::Mutex;
 
 use super::{
     canvas::Point,
@@ -170,10 +169,6 @@ pub struct Typography {
     pub stroke_width: Option<f32>,
     pub alignment: Option<koharu_scene::TextAlignment>,
     pub writing_mode: Option<koharu_scene::WritingMode>,
-}
-
-pub(crate) struct CurrentProject {
-    pub(crate) project: Mutex<Option<Project>>,
 }
 
 #[derive(Clone)]

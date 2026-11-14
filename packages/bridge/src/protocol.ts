@@ -18,11 +18,13 @@ export const commands = {
 	getPage: () => __TAURI_INVOKE<Page | null>("get_page"),
 	listProjects: () => __TAURI_INVOKE<ProjectSummary[]>("list_projects"),
 	createProject: (name: string) => __TAURI_INVOKE<null>("create_project", { name }),
+	/**  A project is edited in one window at a time; opening it again focuses that window. */
 	openProject: (name: string) => __TAURI_INVOKE<null>("open_project", { name }),
 	deleteProject: (name: string) => __TAURI_INVOKE<null>("delete_project", { name }),
 	closeProject: () => __TAURI_INVOKE<null>("close_project"),
 	import: (source: PageImportSource) => __TAURI_INVOKE<null>("import", { source }),
 	selectPage: (page: EntityId) => __TAURI_INVOKE<PageSelection>("select_page", { page }),
+	openWindow: () => __TAURI_INVOKE<null>("open_window"),
 	renamePage: (page: EntityId, label: string) => __TAURI_INVOKE<null>("rename_page", { page, label }),
 	deletePages: (pages: EntityId[]) => __TAURI_INVOKE<null>("delete_pages", { pages }),
 	movePage: (page: EntityId, index: number) => __TAURI_INVOKE<null>("move_page", { page, index }),
