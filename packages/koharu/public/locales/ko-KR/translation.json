@@ -363,6 +363,7 @@
   },
   "resources": {
     "cpu": "CPU",
+    "freeMemory": "메모리 해제",
     "processUtilization": "프로세스 사용률",
     "ram": "RAM",
     "summary": "RAM {{ram}}%, CPU {{cpu}}%",

@@ -363,6 +363,7 @@
   },
   "resources": {
     "cpu": "CPU",
+    "freeMemory": "メモリを解放",
     "processUtilization": "プロセス使用率",
     "ram": "RAM",
     "summary": "RAM {{ram}}%、CPU {{cpu}}%",

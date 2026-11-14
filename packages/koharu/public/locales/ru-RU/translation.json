@@ -363,6 +363,7 @@
   },
   "resources": {
     "cpu": "CPU",
+    "freeMemory": "Освободить память",
     "processUtilization": "Использование процессом",
     "ram": "RAM",
     "summary": "ОЗУ {{ram}}%, ЦП {{cpu}}%",

@@ -1,9 +1,13 @@
 'use client'
 
-import { Cpu, Gauge, HardDrive, MemoryStick } from 'lucide-react'
+import { Cpu, Eraser, Gauge, HardDrive, MemoryStick } from 'lucide-react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { call } from '@/lib/backend'
 import { useKoharuStore } from '@/lib/store'
+import { commands } from '@koharu/bridge/protocol'
+import { Button } from '@koharu/ui/components/button'
 import {
   Popover,
   PopoverContent,
@@ -17,7 +21,18 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@koharu/ui/components/t
 export function ResourceMonitor() {
   const { t } = useTranslation()
   const resources = useKoharuStore((state) => state.resources)
+  const running = useKoharuStore((state) =>
+    Object.values(state.jobs).some((job) => job.state === 'running'),
+  )
+  const [freeing, setFreeing] = useState(false)
   if (!resources) return null
+
+  const freeMemory = () => {
+    setFreeing(true)
+    void call(commands.freeMemory)
+      .catch(() => undefined)
+      .finally(() => setFreeing(false))
+  }
 
   const device =
     resources.devices.find((candidate) => candidate.selected) ?? resources.devices[0] ?? null
@@ -95,6 +110,19 @@ export function ResourceMonitor() {
                 }
               />
             )}
+          </div>
+          <div className='border-t border-border/50 p-1.5'>
+            <Button
+              type='button'
+              variant='ghost'
+              size='sm'
+              className='w-full justify-start rounded-lg text-[11px]'
+              disabled={running || freeing}
+              onClick={freeMemory}
+            >
+              <Eraser className='size-3.5' />
+              {t('resources.freeMemory')}
+            </Button>
           </div>
         </PopoverContent>
       </Popover>

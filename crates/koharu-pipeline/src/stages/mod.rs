@@ -157,6 +157,15 @@ impl Stages {
         self.processor(stage, input).unload()
     }
 
+    /// Unloads every idle model. A model that is currently running stays loaded.
+    pub(crate) fn unload_all(&self) {
+        for processor in self.processors() {
+            if processor.unload() {
+                tracing::debug!(model = processor.model(), "unloaded model on request");
+            }
+        }
+    }
+
     /// Unloads every model except the one this stage input runs.
     pub(crate) fn unload_others(&self, stage: Stage, input: &StageInput) -> bool {
         let keep = self.processor(stage, input);

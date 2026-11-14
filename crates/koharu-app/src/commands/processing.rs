@@ -231,6 +231,14 @@ pub(crate) async fn start(
 
 #[tauri::command]
 #[specta::specta]
+pub(crate) async fn free_memory(
+    window: WebviewWindow<CefRuntime>,
+) -> std::result::Result<(), Error> {
+    Ok(window.state::<koharu_pipeline::Pipeline>().free_memory()?)
+}
+
+#[tauri::command]
+#[specta::specta]
 pub(crate) async fn stop_job(
     job: JobId,
     window: WebviewWindow<CefRuntime>,

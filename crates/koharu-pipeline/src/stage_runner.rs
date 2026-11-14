@@ -32,6 +32,10 @@ impl StageRunner {
         })
     }
 
+    pub(crate) fn unload_all(&self) {
+        self.stages.unload_all()
+    }
+
     #[tracing::instrument(skip_all)]
     pub(crate) async fn run(&self, job: StageJob) -> StageCompletion {
         let started = Instant::now();

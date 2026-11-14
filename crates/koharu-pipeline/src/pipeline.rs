@@ -72,6 +72,17 @@ impl Pipeline {
         self.resources.subscribe()
     }
 
+    /// Releases every loaded model from accelerator and host memory. Refused while a
+    /// run holds the pipeline so its models are not reloaded mid-run.
+    pub fn free_memory(&self) -> Result<()> {
+        let _execution = self
+            .execution
+            .try_lock()
+            .map_err(|_| anyhow::anyhow!("cannot free memory while processing is running"))?;
+        self.current.load().unload_all();
+        Ok(())
+    }
+
     #[tracing::instrument(skip_all)]
     pub async fn execute(
         &self,

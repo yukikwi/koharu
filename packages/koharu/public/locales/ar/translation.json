@@ -363,6 +363,7 @@
   },
   "resources": {
     "cpu": "CPU",
+    "freeMemory": "تحرير الذاكرة",
     "processUtilization": "استخدام العملية",
     "ram": "RAM",
     "summary": "RAM {{ram}}%، CPU {{cpu}}%",

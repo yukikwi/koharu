@@ -363,6 +363,7 @@
   },
   "resources": {
     "cpu": "CPU",
+    "freeMemory": "Free memory",
     "processUtilization": "Process utilization",
     "ram": "RAM",
     "summary": "RAM {{ram}}%, CPU {{cpu}}%",

@@ -363,6 +363,7 @@
   },
   "resources": {
     "cpu": "CPU",
+    "freeMemory": "釋放記憶體",
     "processUtilization": "程序使用率",
     "ram": "RAM",
     "summary": "記憶體 {{ram}}%，CPU {{cpu}}%",

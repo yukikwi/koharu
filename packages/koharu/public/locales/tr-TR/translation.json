@@ -363,6 +363,7 @@
   },
   "resources": {
     "cpu": "CPU",
+    "freeMemory": "Belleği boşalt",
     "processUtilization": "İşlem kullanımı",
     "ram": "RAM",
     "summary": "RAM %{{ram}}, CPU %{{cpu}}",
