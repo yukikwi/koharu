@@ -11,6 +11,7 @@ pub mod comic_layout_yolo26s;
 pub mod comic_onomatopoeia;
 pub mod comic_text_bubble_detector;
 pub mod comic_text_detector;
+pub mod dots_ocr;
 pub mod flux2_klein;
 pub mod flux3_klein;
 pub mod font_detector;

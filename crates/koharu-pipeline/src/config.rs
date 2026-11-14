@@ -74,6 +74,7 @@ impl Serialize for PipelineConfig {
             OcrModel::MangaOcr => "manga-ocr",
             OcrModel::BaberuOcr => "baberu-ocr",
             OcrModel::HayaiOcr => "hayai-ocr",
+            OcrModel::DotsOcr => "dots.ocr",
         };
         let mut processor = self.processor.clone();
         let DetectionModel::KoharuLayoutRFDetrSeg2XL(config) = &self.detection;
@@ -143,6 +144,7 @@ impl<'de> Deserialize<'de> for PipelineConfig {
             "manga-ocr" => OcrModel::MangaOcr,
             "baberu-ocr" => OcrModel::BaberuOcr,
             "hayai-ocr" => OcrModel::HayaiOcr,
+            "dots.ocr" => OcrModel::DotsOcr,
             model => {
                 return Err(serde::de::Error::custom(format!(
                     "unsupported OCR model {model}"
@@ -266,6 +268,7 @@ impl PipelineConfig {
                 | OcrModel::MangaOcr
                 | OcrModel::BaberuOcr
                 | OcrModel::HayaiOcr
+                | OcrModel::DotsOcr
         ) {
             bail!("unsupported OCR model")
         }
@@ -306,6 +309,8 @@ pub enum OcrModel {
     BaberuOcr,
     #[serde(rename = "hayai-ocr")]
     HayaiOcr,
+    #[serde(rename = "dots.ocr")]
+    DotsOcr,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]

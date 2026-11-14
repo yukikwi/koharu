@@ -6,7 +6,7 @@ use anyhow::{Context as _, Result, anyhow, bail};
 use async_trait::async_trait;
 use image::DynamicImage;
 use koharu_ml::{
-    baberu_ocr::BaberuOcr, hayai_ocr::HayaiOcr, manga_ocr::MangaOcr,
+    baberu_ocr::BaberuOcr, dots_ocr::DotsOcr, hayai_ocr::HayaiOcr, manga_ocr::MangaOcr,
     paddle_ocr_vl::PaddleOCRVLTask, paddle_ocr_vl_quantized::PaddleOCRVLQuantized,
 };
 use koharu_scene::{
@@ -39,6 +39,7 @@ impl StageProcessor for Processor {
             OcrModel::MangaOcr => "manga-ocr",
             OcrModel::BaberuOcr => "baberu-ocr",
             OcrModel::HayaiOcr => "hayai-ocr",
+            OcrModel::DotsOcr => "dots.ocr",
             OcrModel::PaddleOcrVl1_6 => "paddleocr-vl-1.6",
         }
     }
@@ -68,6 +69,7 @@ enum Model {
     Manga(Arc<Mutex<MangaOcr>>),
     Baberu(Arc<Mutex<BaberuOcr>>),
     Hayai(Arc<Mutex<HayaiOcr>>),
+    Dots(Arc<Mutex<DotsOcr>>),
     Paddle(Arc<Mutex<PaddleOCRVLQuantized>>),
 }
 
@@ -83,6 +85,9 @@ impl Model {
             OcrModel::HayaiOcr => Ok(Self::Hayai(Arc::new(Mutex::new(
                 HayaiOcr::load(device).await?,
             )))),
+            OcrModel::DotsOcr => Ok(Self::Dots(Arc::new(Mutex::new(
+                DotsOcr::load(device).await?,
+            )))),
             OcrModel::PaddleOcrVl1_6 => Ok(Self::Paddle(Arc::new(Mutex::new(
                 PaddleOCRVLQuantized::load(device).await?,
             )))),
@@ -94,6 +99,7 @@ impl Model {
             Self::Manga(_) => "manga-ocr",
             Self::Baberu(_) => "baberu-ocr",
             Self::Hayai(_) => "hayai-ocr",
+            Self::Dots(_) => "dots.ocr",
             Self::Paddle(_) => "paddleocr-vl-1.6",
         };
         let page = input.page;
@@ -154,6 +160,12 @@ impl Model {
                 .await?
             }
             Self::Hayai(model) => {
+                infer_text(model.clone(), targets, |model, image| {
+                    model.inference(image)
+                })
+                .await?
+            }
+            Self::Dots(model) => {
                 infer_text(model.clone(), targets, |model, image| {
                     model.inference(image)
                 })

@@ -12,7 +12,7 @@ export type ModelName = PipelineModel['model']
 
 export const modelOptions = {
   detection: ['koharu-layout-rfdetr-seg-2xl'],
-  ocr: ['paddleocr-vl-1.6', 'manga-ocr', 'baberu-ocr', 'hayai-ocr'],
+  ocr: ['paddleocr-vl-1.6', 'manga-ocr', 'baberu-ocr', 'hayai-ocr', 'dots.ocr'],
   inpainting: [
     'lama',
     'aot-inpainting',
@@ -29,6 +29,7 @@ export const modelNames: Record<ModelName, string> = {
   'manga-ocr': 'Manga OCR',
   'baberu-ocr': 'Baberu OCR',
   'hayai-ocr': 'Hayai OCR',
+  'dots.ocr': 'dots.ocr',
   lama: 'LaMa',
   'aot-inpainting': 'AOT Inpainting',
   'flux2-klein': 'FLUX.2 Klein',
@@ -51,6 +52,7 @@ export function defaultModel(model: ModelName): PipelineModel {
     case 'manga-ocr':
     case 'baberu-ocr':
     case 'hayai-ocr':
+    case 'dots.ocr':
     case 'lama':
     case 'aot-inpainting':
       return { model }
