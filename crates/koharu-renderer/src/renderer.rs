@@ -51,6 +51,7 @@ const DEFAULT_RETAINED_NODES: usize = 2_048;
 const MAX_RESOURCE_READS: usize = 8;
 const ASSETS_KIND: &str = "dev.koharu.assets";
 const MINIMUM_FONT_SIZE: f32 = 9.0;
+const DEFAULT_LINE_HEIGHT: f32 = 1.2;
 
 #[derive(Clone)]
 pub struct Renderer {
@@ -473,6 +474,7 @@ enum DraftMetadata {
         alignment: TextAlign,
         writing_mode: WritingMode,
         angle_degrees: f32,
+        line_height: f32,
     },
 }
 
@@ -818,12 +820,16 @@ impl Traversal<'_> {
                 .and_then(|value| value.color)
                 .unwrap_or([0, 0, 0, 255]),
             stroke: resolve_stroke(typography.as_ref()),
-            line_height: 1.2,
+            line_height: typography
+                .as_ref()
+                .and_then(|value| value.line_height)
+                .unwrap_or(DEFAULT_LINE_HEIGHT),
             letter_spacing: 0.0,
             word_spacing: 0.0,
             text_inset: [4.0; 4],
             point_text: !is_bubble && layout.kind == TextLayoutKind::Point,
         };
+        let line_height = descriptor.line_height;
         Ok(Some(LayerDraft {
             entity,
             geometry,
@@ -837,6 +843,7 @@ impl Traversal<'_> {
                 alignment,
                 writing_mode,
                 angle_degrees: frame.angle_degrees,
+                line_height,
             },
             dependencies: dependencies.iter().cloned().collect(),
         }))
@@ -1198,6 +1205,7 @@ fn assemble_frame(
                 alignment,
                 writing_mode,
                 angle_degrees,
+                line_height,
             } => {
                 let metadata = node
                     .text
@@ -1214,6 +1222,7 @@ fn assemble_frame(
                     alignment,
                     writing_mode,
                     angle_degrees,
+                    line_height,
                 })
             }
         };
@@ -1722,6 +1731,7 @@ mod tests {
             alignment: None,
             writing_mode: Some(koharu_scene::WritingMode::Vertical),
             extensions: BTreeMap::new(),
+            line_height: None,
         };
         let bounds = LayoutBox {
             x: 0.0,
@@ -1758,6 +1768,7 @@ mod tests {
             alignment: None,
             writing_mode: Some(koharu_scene::WritingMode::Vertical),
             extensions: BTreeMap::new(),
+            line_height: None,
         };
         let bounds = LayoutBox {
             x: 0.0,

@@ -417,6 +417,7 @@ fn write_region<'a>(
             alignment: None,
             writing_mode: inferred.map(|value| value.writing_mode),
             extensions: Default::default(),
+            line_height: None,
         },
     )
     .context("failed to set detected typography")?;

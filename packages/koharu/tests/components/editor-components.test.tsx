@@ -92,6 +92,7 @@ const textLayer: Layer = {
     stroke_width: 0,
     alignment: 'Center',
     writing_mode: null,
+    line_height: null,
   },
   layout: 'paragraph',
   automatic_region: null,

@@ -354,6 +354,7 @@ impl Host for KoharuHost {
                     stroke_width: arguments.stroke_width,
                     alignment: arguments.alignment.map(Into::into),
                     writing_mode: arguments.writing_mode.map(Into::into),
+                    line_height: arguments.line_height,
                 };
                 self.mutate(|project| {
                     Box::pin(async move {
@@ -614,6 +615,8 @@ struct SetTypography {
     stroke_width: Option<f32>,
     alignment: Option<AgentTextAlignment>,
     writing_mode: Option<AgentWritingMode>,
+    /// Line advance as a multiple of the font size.
+    line_height: Option<f32>,
 }
 
 #[derive(Deserialize, JsonSchema)]

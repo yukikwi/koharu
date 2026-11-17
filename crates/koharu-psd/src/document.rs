@@ -80,6 +80,7 @@ pub(crate) struct TextMetadata {
     pub font_index: usize,
     pub font_set: Vec<String>,
     pub font_size: f64,
+    pub line_height: f64,
     pub color: [u8; 4],
     pub box_width: f64,
     pub box_height: f64,
@@ -367,6 +368,7 @@ fn text_metadata(index: i32, text: &RenderedText, font_set: &[String]) -> TextMe
         font_index,
         font_set: font_set.to_vec(),
         font_size: f64::from(text.font_size),
+        line_height: f64::from(text.line_height),
         color: text.color,
         box_width: f64::from(bounds.width.max(1.0)),
         box_height: f64::from(bounds.height.max(1.0)),
@@ -401,6 +403,7 @@ mod tests {
             alignment: TextAlign::Center,
             writing_mode: WritingMode::Horizontal,
             angle_degrees: 0.0,
+            line_height: 1.2,
         }
     }
 

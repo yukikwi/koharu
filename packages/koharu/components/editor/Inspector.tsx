@@ -106,7 +106,11 @@ const defaultTypography: Typography = {
   stroke_width: 0,
   alignment: null,
   writing_mode: null,
+  line_height: null,
 }
+
+// Matches the renderer's line height when typography leaves it unset.
+const defaultLineHeight = 1.2
 
 export function Inspector() {
   const { t } = useTranslation()
@@ -131,6 +135,7 @@ export function Inspector() {
 function TypeInspector() {
   const { t } = useTranslation()
   const borderWidthId = useId()
+  const lineHeightId = useId()
   const page = usePage().data
   const selectedIds = useKoharuStore((state) => state.selectedLayers)
   const availableFonts = useFonts().data
@@ -192,6 +197,7 @@ function TypeInspector() {
   const strokeColor = typography.stroke_color ?? defaultTypography.stroke_color!
   const strokeEnabled = strokeWidth > 0 && strokeColor[3] > 0
   const displayedStrokeWidth = strokeWidth > 0 ? strokeWidth : 1.5
+  const lineHeight = typography.line_height ?? defaultLineHeight
   const writingMode = typography.writing_mode ?? 'Horizontal'
   const writingModeChoice = typography.writing_mode ?? 'Auto'
   const effectiveAlignment =
@@ -387,7 +393,7 @@ function TypeInspector() {
           </InspectorField>
         </div>
 
-        <div className='grid min-w-0 grid-cols-[2.75rem_minmax(5.5rem,1fr)] items-end gap-1.5'>
+        <div className='grid min-w-0 grid-cols-[2.75rem_minmax(0,1fr)_minmax(0,1fr)] items-end gap-1.5'>
           <InspectorField label={t('inspector.border')}>
             <ColorWell
               label={t('inspector.borderColor')}
@@ -437,6 +443,35 @@ function TypeInspector() {
                 </NumberFieldDecrement>
                 <NumberFieldInput aria-label={t('inspector.borderWidth')} />
                 <NumberFieldIncrement aria-label={t('inspector.increaseBorderWidth')}>
+                  <Plus />
+                </NumberFieldIncrement>
+              </NumberFieldGroup>
+            </NumberField>
+          </InspectorField>
+          <InspectorField label={t('inspector.lineHeight')}>
+            <NumberField
+              id={lineHeightId}
+              name='line-height'
+              className='min-w-0'
+              disabled={disabled}
+              value={lineHeight}
+              min={0.5}
+              max={5}
+              step={0.1}
+              format={{ maximumFractionDigits: 2 }}
+              onValueChange={(next) => {
+                if (next !== null && next >= 0.5 && next <= 5) {
+                  const line_height = Math.round(next * 100) / 100
+                  apply((value) => ({ ...value, line_height }))
+                }
+              }}
+            >
+              <NumberFieldGroup>
+                <NumberFieldDecrement aria-label={t('inspector.decreaseLineHeight')}>
+                  <Minus />
+                </NumberFieldDecrement>
+                <NumberFieldInput aria-label={t('inspector.lineHeight')} />
+                <NumberFieldIncrement aria-label={t('inspector.increaseLineHeight')}>
                   <Plus />
                 </NumberFieldIncrement>
               </NumberFieldGroup>

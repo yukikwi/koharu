@@ -24,6 +24,8 @@ pub struct TextEngineSpec {
     pub font_index: usize,
     pub font_set: Vec<String>,
     pub font_size: f64,
+    /// Photoshop auto-leading: line advance as a multiple of the font size.
+    pub line_height: f64,
     pub color: [u8; 4],
     pub faux_bold: bool,
     pub faux_italic: bool,
@@ -58,7 +60,7 @@ pub fn encode_engine_data(spec: &TextEngineSpec) -> Vec<u8> {
         TextOrientation::Vertical => 1,
     };
 
-    let paragraph_properties = paragraph_properties(spec.justification);
+    let paragraph_properties = paragraph_properties(spec.justification, spec.line_height);
     let base_style_sheet = base_style_sheet(font_index);
     let style_run_sheet = style_run_sheet(spec, font_index);
     let font_set = spec
@@ -353,7 +355,10 @@ fn utf16_len(text: &str) -> usize {
     text.encode_utf16().count()
 }
 
-fn paragraph_properties(justification: TextJustification) -> Vec<(String, EngineValue)> {
+fn paragraph_properties(
+    justification: TextJustification,
+    line_height: f64,
+) -> Vec<(String, EngineValue)> {
     vec![
         (
             "Justification".to_string(),
@@ -398,7 +403,7 @@ fn paragraph_properties(justification: TextJustification) -> Vec<(String, Engine
                 EngineValue::Float(1.0),
             ]),
         ),
-        ("AutoLeading".to_string(), EngineValue::Float(1.2)),
+        ("AutoLeading".to_string(), EngineValue::Float(line_height)),
         ("LeadingType".to_string(), EngineValue::Int(0)),
         ("Hanging".to_string(), EngineValue::Bool(false)),
         ("Burasagari".to_string(), EngineValue::Bool(false)),
@@ -780,6 +785,7 @@ mod tests {
             font_index: 1,
             font_set: vec!["AdobeInvisFont".to_string(), "ArialMT".to_string()],
             font_size: 14.0,
+            line_height: 1.2,
             color: [1, 2, 3, 255],
             faux_bold: true,
             faux_italic: false,
@@ -814,6 +820,7 @@ mod tests {
             font_index: 1,
             font_set: vec!["AdobeInvisFont".to_string(), "ArialMT".to_string()],
             font_size: 14.0,
+            line_height: 1.2,
             color: [1, 2, 3, 255],
             faux_bold: true,
             faux_italic: false,

@@ -549,6 +549,7 @@ export type Typography = {
 	stroke_width: number | null,
 	alignment: TextAlignment | null,
 	writing_mode: WritingMode | null,
+	line_height: number | null,
 };
 
 export type TypographyUpdate = {

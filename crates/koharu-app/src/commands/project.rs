@@ -170,6 +170,7 @@ pub struct Typography {
     pub stroke_width: Option<f32>,
     pub alignment: Option<koharu_scene::TextAlignment>,
     pub writing_mode: Option<koharu_scene::WritingMode>,
+    pub line_height: Option<f32>,
 }
 
 #[derive(Clone)]
@@ -530,6 +531,7 @@ impl Project {
                     },
                     writing_mode: None,
                     extensions: Default::default(),
+                    line_height: None,
                 },
             )?;
             Ok(())
@@ -622,6 +624,7 @@ impl Project {
                         alignment: update.typography.alignment,
                         writing_mode: update.typography.writing_mode,
                         extensions: Default::default(),
+                        line_height: update.typography.line_height.filter(|ratio| *ratio > 0.0),
                     },
                 )?;
             }
@@ -1177,6 +1180,7 @@ impl Project {
             stroke_width: typography.stroke_width,
             alignment: typography.alignment,
             writing_mode,
+            line_height: typography.line_height,
         }
     }
 
@@ -1421,6 +1425,7 @@ mod tests {
             alignment: None,
             writing_mode: Some(WritingMode::Vertical),
             extensions: Default::default(),
+            line_height: None,
         };
 
         assert_eq!(
