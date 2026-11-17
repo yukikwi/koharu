@@ -13,10 +13,12 @@
     "downloadingFiles_one": "Downloading {{count}} file",
     "downloadingFiles_other": "Downloading {{count}} files",
     "expand": "Expand activity",
+    "invalidOutput": "Translation returned invalid output",
     "modelDownload": "Model download",
     "pageLabel": "Page {{number}}: {{label}}",
     "processing": "Processing",
     "processingFailed": "Processing failed.",
+    "retrying": "Retrying translation (attempt {{attempt}} of {{attempts}})",
     "stop": "Stop",
     "title": "Activity"
   },

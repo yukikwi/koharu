@@ -276,9 +276,16 @@ export type Job = {
 	stage: Stage | null,
 	model: string | null,
 	error: string | null,
+	/**  Set only on the update announcing a retry; the next update clears it. */
+	retry: JobRetry | null,
 };
 
 export type JobId = string;
+
+export type JobRetry = {
+	attempt: number,
+	attempts: number,
+};
 
 export type JobState = "running" | "finished" | "failed" | "stopped";
 

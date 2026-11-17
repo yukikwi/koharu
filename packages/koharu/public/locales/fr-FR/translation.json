@@ -13,10 +13,12 @@
     "downloadingFiles_one": "Téléchargement de {{count}} fichier",
     "downloadingFiles_other": "Téléchargement de {{count}} fichiers",
     "expand": "Développer l’activité",
+    "invalidOutput": "La traduction a renvoyé une sortie invalide",
     "modelDownload": "Téléchargement du modèle",
     "pageLabel": "Page {{number}} : {{label}}",
     "processing": "Traitement",
     "processingFailed": "Échec du traitement.",
+    "retrying": "Nouvelle tentative de traduction (essai {{attempt}} sur {{attempts}})",
     "stop": "Arrêter",
     "title": "Activité"
   },

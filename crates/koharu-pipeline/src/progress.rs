@@ -29,6 +29,14 @@ pub enum Progress {
         page: EntityId,
         stage: Stage,
     },
+    /// A stage is calling its model again after the model returned unusable output.
+    Retrying {
+        page: EntityId,
+        stage: Stage,
+        model: String,
+        attempt: u32,
+        attempts: u32,
+    },
 }
 
 pub type ProgressSink = Arc<dyn Fn(Progress) + Send + Sync>;

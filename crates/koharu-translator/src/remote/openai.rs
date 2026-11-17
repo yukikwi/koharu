@@ -135,7 +135,7 @@ pub(super) async fn translate(
         .message
         .content
         .context("OpenAI returned no message content")?;
-    Ok(prompt::translations("openai", &text, &request.segments)?)
+    prompt::translations("openai", &text, &request.segments)
 }
 
 #[derive(Serialize)]

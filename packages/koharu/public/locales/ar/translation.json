@@ -13,10 +13,12 @@
     "downloadingFiles_one": "جارٍ تنزيل {{count}} ملف",
     "downloadingFiles_other": "جارٍ تنزيل {{count}} من الملفات",
     "expand": "توسيع النشاط",
+    "invalidOutput": "أعادت الترجمة مخرجات غير صالحة",
     "modelDownload": "تنزيل النموذج",
     "pageLabel": "الصفحة {{number}}: {{label}}",
     "processing": "قيد المعالجة",
     "processingFailed": "فشلت المعالجة.",
+    "retrying": "إعادة محاولة الترجمة (المحاولة {{attempt}} من {{attempts}})",
     "stop": "إيقاف",
     "title": "النشاط"
   },

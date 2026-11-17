@@ -124,7 +124,7 @@ pub(super) async fn translate(
         .and_then(|candidate| candidate.content.parts.into_iter().next())
         .context("Gemini returned no candidate content")?
         .text;
-    Ok(prompt::translations("gemini", &text, &request.segments)?)
+    prompt::translations("gemini", &text, &request.segments)
 }
 
 #[derive(Serialize)]

@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use koharu_scene::{Authored, Geometry, Glossary, LanguageTag, Origin, SourceText, Translation};
 use koharu_translator::{GlossaryTerm, SegmentBox, TranslationRequest, Translator};
 
-use crate::{TranslationConfig, scope::geometry_extents};
+use crate::{Progress, Stage, TranslationConfig, progress, scope::geometry_extents};
 
 use super::{StageInput, StageProcessor, finish, generation};
 
@@ -90,7 +90,23 @@ impl StageProcessor for Processor {
         }
         let (provider, translated) = self
             .translator
-            .translate(&self.config.model, self.config.generation, request)
+            .translate(
+                &self.config.model,
+                self.config.generation,
+                request,
+                |retry| {
+                    progress::emit(
+                        input.progress(),
+                        Progress::Retrying {
+                            page: input.page,
+                            stage: Stage::Translation,
+                            model: self.model().to_owned(),
+                            attempt: retry.attempt,
+                            attempts: retry.attempts,
+                        },
+                    );
+                },
+            )
             .await?;
         let language = LanguageTag::new(self.config.target_language.tag())?;
         let generated = generation(PRODUCER, provider)?;

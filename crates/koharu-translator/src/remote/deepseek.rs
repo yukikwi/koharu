@@ -102,7 +102,7 @@ pub(super) async fn translate(
         .message
         .content
         .context("DeepSeek returned no message content")?;
-    Ok(prompt::translations("deepseek", &text, &request.segments)?)
+    prompt::translations("deepseek", &text, &request.segments)
 }
 
 #[derive(Serialize)]

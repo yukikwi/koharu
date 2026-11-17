@@ -22,6 +22,15 @@ pub enum Error {
         expected: usize,
         actual: usize,
     },
+    #[error(
+        "{provider} returned invalid translation JSON for {segments} segments: {reason}; response was: {response}"
+    )]
+    InvalidOutput {
+        provider: String,
+        segments: usize,
+        reason: serde_json::Error,
+        response: String,
+    },
     #[error("{provider} quota or rate limit was exceeded")]
     QuotaExceeded { provider: &'static str },
     #[error("{provider} API request failed with HTTP {status}: {message}")]

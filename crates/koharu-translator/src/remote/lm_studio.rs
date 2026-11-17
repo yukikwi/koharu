@@ -95,7 +95,7 @@ pub(super) async fn translate(
         .message
         .content
         .context("LM Studio returned no message content")?;
-    Ok(prompt::translations("lm-studio", &text, &request.segments)?)
+    prompt::translations("lm-studio", &text, &request.segments)
 }
 
 pub(super) async fn models(client: &Client, config: &LmStudioConfig) -> Result<Vec<Model>> {

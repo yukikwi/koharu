@@ -12,7 +12,7 @@ use koharu_scene::{Edit, EntityId, Generation, Patch, ProducerId, Snapshot};
 pub use detection::KoharuLayoutRFDetrSeg2XLConfig;
 pub use inpainting::{Flux2KleinConfig, Flux3KleinConfig, MiniMaxH3ImageConfig, RoremMixedConfig};
 
-use crate::{Bounds, ImageCache, InpaintingMask, PipelineConfig, Stage};
+use crate::{Bounds, ImageCache, InpaintingMask, PipelineConfig, ProgressSink, Stage};
 
 #[derive(Clone)]
 pub(crate) struct StageInput {
@@ -25,6 +25,7 @@ pub(crate) struct StageInput {
     new_regions: bool,
     images: Arc<ImageCache>,
     inpainting_mask: Option<InpaintingMask>,
+    progress: Option<ProgressSink>,
 }
 
 impl StageInput {
@@ -45,11 +46,22 @@ impl StageInput {
             new_regions,
             images,
             inpainting_mask,
+            progress: None,
         }
+    }
+
+    #[must_use]
+    pub(crate) fn with_progress(mut self, progress: Option<ProgressSink>) -> Self {
+        self.progress = progress;
+        self
     }
 
     pub(crate) fn page(&self) -> EntityId {
         self.page
+    }
+
+    pub(crate) fn progress(&self) -> Option<&ProgressSink> {
+        self.progress.as_ref()
     }
 
     /// An entity-scoped or hand-masked run edits only part of the page, so it paints

@@ -13,10 +13,12 @@
     "downloadingFiles_one": "{{count}}件のファイルをダウンロード中",
     "downloadingFiles_other": "{{count}}件のファイルをダウンロード中",
     "expand": "アクティビティを展開",
+    "invalidOutput": "翻訳結果が無効な形式でした",
     "modelDownload": "モデルのダウンロード",
     "pageLabel": "{{number}}ページ目: {{label}}",
     "processing": "処理中",
     "processingFailed": "処理に失敗しました。",
+    "retrying": "翻訳を再試行しています（{{attempts}} 回中 {{attempt}} 回目）",
     "stop": "停止",
     "title": "アクティビティ"
   },

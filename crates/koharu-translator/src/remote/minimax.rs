@@ -88,7 +88,7 @@ pub(super) async fn translate(
         .context("MiniMax returned no choices")?
         .message
         .content;
-    Ok(prompt::translations("minimax", &text, &request.segments)?)
+    prompt::translations("minimax", &text, &request.segments)
 }
 
 #[derive(Serialize)]

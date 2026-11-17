@@ -95,11 +95,7 @@ pub(super) async fn translate(
         .message
         .content
         .context("OpenAI-compatible backend returned no message content")?;
-    Ok(prompt::translations(
-        "openai-compatible",
-        &text,
-        &request.segments,
-    )?)
+    prompt::translations("openai-compatible", &text, &request.segments)
 }
 
 pub(super) async fn models(client: &Client, config: &OpenAiCompatibleConfig) -> Result<Vec<Model>> {

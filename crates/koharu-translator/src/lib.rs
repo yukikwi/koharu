@@ -22,6 +22,19 @@ pub use model::{GenerationConfig, Model, ModelSelection, Quantization};
 pub(crate) use model::{ModelGeneration, QuantizationDefinition, display_name};
 pub use provider::{Provider, ProviderConfig, ProvidersConfig};
 
+/// Calls a request gets when the model keeps returning output that does not
+/// parse as the translation schema. Hosted machine-translation providers never
+/// produce that error, so they still fail on their first call.
+pub const TRANSLATION_ATTEMPTS: u32 = 3;
+
+/// Reported before a translation is requested again after invalid output.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Retry {
+    /// The attempt about to start, counting the first call as 1.
+    pub attempt: u32,
+    pub attempts: u32,
+}
+
 #[derive(Clone)]
 pub struct Translator {
     providers: koharu_config::Config<ProvidersConfig>,
@@ -101,6 +114,7 @@ impl Translator {
         selection: &ModelSelection,
         generation: GenerationConfig,
         mut request: TranslationRequest,
+        on_retry: impl Fn(Retry),
     ) -> anyhow::Result<(&'static str, Vec<String>)> {
         let provider = selection.provider;
         let provider_id: &'static str = provider.into();
@@ -123,14 +137,28 @@ impl Translator {
                 request.boxes.len()
             );
         }
-        let translated = if provider == Provider::Local {
-            self.local(selection)
-                .await?
-                .translate(request, generation)
-                .await?
-        } else {
-            let providers = self.providers.read()?.clone();
-            remote::translate(&self.client, &providers, selection, &generation, &request).await?
+        let mut attempt = 1;
+        let translated = loop {
+            let result = if provider == Provider::Local {
+                self.local(selection)
+                    .await?
+                    .translate(request.clone(), generation)
+                    .await
+            } else {
+                let providers = self.providers.read()?.clone();
+                remote::translate(&self.client, &providers, selection, &generation, &request).await
+            };
+            match result {
+                Err(error @ Error::InvalidOutput { .. }) if attempt < TRANSLATION_ATTEMPTS => {
+                    attempt += 1;
+                    tracing::warn!(%error, attempt, "retrying translation after invalid output");
+                    on_retry(Retry {
+                        attempt,
+                        attempts: TRANSLATION_ATTEMPTS,
+                    });
+                }
+                result => break result?,
+            }
         };
         if translated.len() != expected {
             return Err(Error::SegmentCount {

@@ -2,6 +2,7 @@
 
 import { create } from 'zustand'
 
+import i18n from '@/lib/i18n'
 import type {
   CanvasState,
   Download,
@@ -153,6 +154,13 @@ export function receiveCanvas(canvas: CanvasState): void {
 
 export function receiveJob(job: Job): void {
   useKoharuStore.setState((state) => ({ jobs: { ...state.jobs, [job.id]: job } }))
+  if (job.retry) {
+    toast.add({
+      type: 'warning',
+      title: i18n.t('activity.invalidOutput'),
+      description: i18n.t('activity.retrying', job.retry),
+    })
+  }
 }
 
 export function receiveDownload(download: Download): void {

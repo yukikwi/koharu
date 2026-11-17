@@ -47,6 +47,14 @@ pub struct Job {
     pub stage: Option<koharu_pipeline::Stage>,
     pub model: Option<String>,
     pub error: Option<String>,
+    /// Set only on the update announcing a retry; the next update clears it.
+    pub retry: Option<JobRetry>,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Type)]
+pub struct JobRetry {
+    pub attempt: u32,
+    pub attempts: u32,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Type)]
@@ -108,6 +116,7 @@ pub(crate) async fn start(
         stage: None,
         model: None,
         error: None,
+        retry: None,
     };
     processing.jobs.lock().insert(id, job.clone());
     workspace.job_channel.publish(job);
@@ -129,27 +138,58 @@ pub(crate) async fn start(
                 Progress::Started { pages, stages } => {
                     let mut progress = progress.lock();
                     *progress = (0, pages.len().saturating_mul(stages.len()));
-                    Some((0, progress.1, None, None, None))
+                    Some((0, progress.1, None, None, None, None))
                 }
                 Progress::Loading { page, stage, model } => {
                     let progress = progress.lock();
-                    Some((progress.0, progress.1, Some(page), Some(stage), Some(model)))
+                    Some((
+                        progress.0,
+                        progress.1,
+                        Some(page),
+                        Some(stage),
+                        Some(model),
+                        None,
+                    ))
+                }
+                Progress::Retrying {
+                    page,
+                    stage,
+                    model,
+                    attempt,
+                    attempts,
+                } => {
+                    let progress = progress.lock();
+                    Some((
+                        progress.0,
+                        progress.1,
+                        Some(page),
+                        Some(stage),
+                        Some(model),
+                        Some(JobRetry { attempt, attempts }),
+                    ))
                 }
                 Progress::Finished {
                     page, stage, model, ..
                 } => {
                     let mut progress = progress.lock();
                     progress.0 = progress.0.saturating_add(1).min(progress.1);
-                    Some((progress.0, progress.1, Some(page), Some(stage), Some(model)))
+                    Some((
+                        progress.0,
+                        progress.1,
+                        Some(page),
+                        Some(stage),
+                        Some(model),
+                        None,
+                    ))
                 }
                 Progress::Skipped { page, stage } => {
                     let mut progress = progress.lock();
                     progress.0 = progress.0.saturating_add(1).min(progress.1);
-                    Some((progress.0, progress.1, Some(page), Some(stage), None))
+                    Some((progress.0, progress.1, Some(page), Some(stage), None, None))
                 }
                 Progress::Running { .. } => None,
             };
-            if let Some((completed, total, page, stage, model)) = update {
+            if let Some((completed, total, page, stage, model, retry)) = update {
                 let job = {
                     let mut jobs = progress_workspace.processing.jobs.lock();
                     jobs.get_mut(&id).map(|job| {
@@ -158,6 +198,7 @@ pub(crate) async fn start(
                         job.page = page;
                         job.stage = stage;
                         job.model = model;
+                        job.retry = retry;
                         job.clone()
                     })
                 };
@@ -220,6 +261,7 @@ pub(crate) async fn start(
                     JobState::Finished
                 };
                 job.error = error;
+                job.retry = None;
                 job
             });
         if let Some(job) = job {

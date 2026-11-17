@@ -7,7 +7,7 @@ use anyhow::Result;
 use koharu_scene::{EntityId, Patch};
 
 use crate::{
-    ErrorKind, PipelineConfig, PipelineError, Progress, ProgressSink, Stage, StopToken,
+    ErrorKind, PipelineConfig, PipelineError, Progress, Stage, StopToken,
     accelerator::AcceleratorGate,
     progress,
     resources::ResourceMonitor,
@@ -105,7 +105,7 @@ impl StageRunner {
         model: &str,
     ) -> std::result::Result<StageOutcome, AttemptFailure> {
         progress::emit(
-            job.progress.as_ref(),
+            job.input.progress(),
             Progress::Loading {
                 page: job.input.page(),
                 stage: job.stage,
@@ -123,7 +123,7 @@ impl StageRunner {
             return Ok(StageOutcome::Stopped);
         }
         progress::emit(
-            job.progress.as_ref(),
+            job.input.progress(),
             Progress::Running {
                 page: job.input.page(),
                 stage: job.stage,
@@ -180,22 +180,11 @@ pub(crate) struct StageJob {
     stage: Stage,
     input: StageInput,
     stop: StopToken,
-    progress: Option<ProgressSink>,
 }
 
 impl StageJob {
-    pub(crate) fn new(
-        stage: Stage,
-        input: StageInput,
-        stop: StopToken,
-        progress: Option<ProgressSink>,
-    ) -> Self {
-        Self {
-            stage,
-            input,
-            stop,
-            progress,
-        }
+    pub(crate) fn new(stage: Stage, input: StageInput, stop: StopToken) -> Self {
+        Self { stage, input, stop }
     }
 }
 

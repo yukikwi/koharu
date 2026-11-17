@@ -13,10 +13,12 @@
     "downloadingFiles_one": "Baixando {{count}} arquivos",
     "downloadingFiles_other": "Baixando {{count}} arquivos",
     "expand": "Expandir atividade",
+    "invalidOutput": "A tradução retornou uma saída inválida",
     "modelDownload": "Download do modelo",
     "pageLabel": "Página {{number}}: {{label}}",
     "processing": "Processando",
     "processingFailed": "Falha no processamento.",
+    "retrying": "Tentando traduzir novamente (tentativa {{attempt}} de {{attempts}})",
     "stop": "Parar",
     "title": "Atividade"
   },

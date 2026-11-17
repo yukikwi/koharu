@@ -5,7 +5,7 @@ use indoc::indoc;
 use serde::{Deserialize, Deserializer, Serialize, de};
 use serde_json::{Value, json};
 
-use crate::{GlossaryTerm, Language, SegmentBox, TranslationContext, TranslationRequest};
+use crate::{Error, GlossaryTerm, Language, SegmentBox, TranslationContext, TranslationRequest};
 
 pub(crate) fn prompts(request: &TranslationRequest) -> anyhow::Result<(String, String)> {
     let input = TranslationInput {
@@ -31,14 +31,14 @@ pub(crate) fn translations(
     provider: &str,
     text: &str,
     source_segments: &[String],
-) -> anyhow::Result<Vec<String>> {
-    let output = serde_json::from_str::<TranslationOutput>(text).with_context(|| {
-        format!(
-            "{provider} returned invalid translation JSON for {} segments; response was: {}",
-            source_segments.len(),
-            snippet(text),
-        )
-    })?;
+) -> crate::Result<Vec<String>> {
+    let output =
+        serde_json::from_str::<TranslationOutput>(text).map_err(|reason| Error::InvalidOutput {
+            provider: provider.to_owned(),
+            segments: source_segments.len(),
+            reason,
+            response: snippet(text),
+        })?;
     let mut translations = source_segments.to_vec();
     let mut translated = vec![false; source_segments.len()];
 

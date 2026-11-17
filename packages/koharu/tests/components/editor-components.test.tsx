@@ -1810,6 +1810,7 @@ describe('greenfield editor', () => {
           stage: 'ocr',
           model: 'manga-ocr',
           error: null,
+          retry: null,
         },
       },
     })

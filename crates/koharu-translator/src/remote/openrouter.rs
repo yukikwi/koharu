@@ -90,11 +90,7 @@ pub(super) async fn translate(
         .message
         .content
         .context("OpenRouter returned no message content")?;
-    Ok(prompt::translations(
-        "openrouter",
-        &text,
-        &request.segments,
-    )?)
+    prompt::translations("openrouter", &text, &request.segments)
 }
 
 pub(super) async fn models(client: &Client) -> Result<Vec<Model>> {

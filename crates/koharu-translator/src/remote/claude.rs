@@ -88,7 +88,7 @@ pub(super) async fn translate(
         .into_iter()
         .find_map(|block| (block.kind == "text").then_some(block.text).flatten())
         .context("Claude returned no text content")?;
-    Ok(prompt::translations("claude", &text, &request.segments)?)
+    prompt::translations("claude", &text, &request.segments)
 }
 
 #[derive(Serialize)]

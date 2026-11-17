@@ -45,7 +45,7 @@ pub(super) async fn translate(
                 .flatten()
         })
         .context("Grok returned no output text")?;
-    Ok(prompt::translations("grok", &text, &request.segments)?)
+    prompt::translations("grok", &text, &request.segments)
 }
 
 pub(super) async fn models(client: &Client) -> Result<Vec<Model>> {
