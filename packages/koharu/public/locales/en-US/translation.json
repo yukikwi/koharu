@@ -6,11 +6,13 @@
     "version": "Version"
   },
   "activity": {
+    "collapse": "Collapse activity",
     "dismiss": "Dismiss",
     "downloadFailed": "Download failed.",
     "downloadingFiles": "Downloading {{count}} files",
     "downloadingFiles_one": "Downloading {{count}} file",
     "downloadingFiles_other": "Downloading {{count}} files",
+    "expand": "Expand activity",
     "modelDownload": "Model download",
     "pageLabel": "Page {{number}}: {{label}}",
     "processing": "Processing",

@@ -6,11 +6,13 @@
     "version": "版本"
   },
   "activity": {
+    "collapse": "收起活动",
     "dismiss": "关闭",
     "downloadFailed": "下载失败哉。",
     "downloadingFiles": "来勒下载 {{count}} 个文件",
     "downloadingFiles_one": "来勒下载 {{count}} 个文件",
     "downloadingFiles_other": "来勒下载 {{count}} 个文件",
+    "expand": "展开活动",
     "modelDownload": "模型下载",
     "pageLabel": "第 {{number}} 页：{{label}}",
     "processing": "来勒处理",

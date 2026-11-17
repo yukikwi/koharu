@@ -1,7 +1,16 @@
 'use client'
 
 import { useMutationState } from '@tanstack/react-query'
-import { CircleAlert, Download, LoaderCircle, Square, X } from 'lucide-react'
+import {
+  ChevronDown,
+  ChevronUp,
+  CircleAlert,
+  Download,
+  LoaderCircle,
+  Square,
+  X,
+} from 'lucide-react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { call } from '@/lib/backend'
@@ -12,6 +21,7 @@ import { Button } from '@koharu/ui/components/button'
 
 export function ActivityCenter() {
   const { t } = useTranslation()
+  const [collapsed, setCollapsed] = useState(false)
   const jobs = useKoharuStore((state) => state.jobs)
   const downloads = useKoharuStore((state) => state.downloads)
   const activities = useMutationState({
@@ -33,17 +43,63 @@ export function ActivityCenter() {
   const visibleDownloads = [...runningDownloads, ...failedDownloads]
   if (activities.length === 0 && visibleJobs.length === 0 && visibleDownloads.length === 0)
     return null
+  const failed = failedDownloads.length > 0 || visibleJobs.some((job) => job.state === 'failed')
 
   return (
     <aside
       aria-label={t('activity.title')}
       className='absolute right-3 bottom-9 z-30 flex w-72 max-w-[calc(100%-1.5rem)] flex-col rounded-2xl border border-border/50 bg-popover shadow-md'
     >
-      <div className='border-b px-3 py-2'>
-        <span className='text-[10px] font-semibold tracking-[0.1em] uppercase'>
+      <div className={`flex items-center gap-2 py-1.5 pr-1.5 pl-3 ${collapsed ? '' : 'border-b'}`}>
+        <span className='flex-1 text-[10px] font-semibold tracking-[0.1em] uppercase'>
           {t('activity.title')}
         </span>
+        {collapsed ? (
+          failed ? (
+            <CircleAlert className='size-3.5 text-destructive' aria-hidden='true' />
+          ) : (
+            <LoaderCircle
+              className='size-3.5 animate-spin text-primary motion-reduce:animate-none'
+              aria-hidden='true'
+            />
+          )
+        ) : null}
+        <Button
+          size='icon-xs'
+          variant='ghost'
+          aria-label={collapsed ? t('activity.expand') : t('activity.collapse')}
+          aria-expanded={!collapsed}
+          onClick={() => setCollapsed((value) => !value)}
+        >
+          {collapsed ? <ChevronUp /> : <ChevronDown />}
+        </Button>
       </div>
+      {collapsed ? null : (
+        <ActivityItems
+          activities={activities}
+          runningDownloads={runningDownloads}
+          failedDownloads={failedDownloads}
+          jobs={visibleJobs}
+        />
+      )}
+    </aside>
+  )
+}
+
+function ActivityItems({
+  activities,
+  runningDownloads,
+  failedDownloads,
+  jobs,
+}: {
+  activities: { id: number; label: string }[]
+  runningDownloads: DownloadState[]
+  failedDownloads: DownloadState[]
+  jobs: Job[]
+}) {
+  const { t } = useTranslation()
+  return (
+    <>
       {activities.map((activity) => (
         <div
           key={activity.id}
@@ -65,10 +121,10 @@ export function ActivityCenter() {
       {failedDownloads.map((download) => (
         <DownloadItem key={download.id} download={download} />
       ))}
-      {visibleJobs.map((job) => (
+      {jobs.map((job) => (
         <JobItem key={job.id} job={job} />
       ))}
-    </aside>
+    </>
   )
 }
 

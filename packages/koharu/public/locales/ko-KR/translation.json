@@ -6,11 +6,13 @@
     "version": "버전"
   },
   "activity": {
+    "collapse": "활동 접기",
     "dismiss": "닫기",
     "downloadFailed": "다운로드에 실패했습니다.",
     "downloadingFiles": "{{count}}개 파일 다운로드 중",
     "downloadingFiles_one": "{{count}}개 파일 다운로드 중",
     "downloadingFiles_other": "{{count}}개 파일 다운로드 중",
+    "expand": "활동 펼치기",
     "modelDownload": "모델 다운로드",
     "pageLabel": "{{number}}페이지: {{label}}",
     "processing": "처리 중",

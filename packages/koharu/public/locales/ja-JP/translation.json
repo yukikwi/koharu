@@ -6,11 +6,13 @@
     "version": "バージョン"
   },
   "activity": {
+    "collapse": "アクティビティを折りたたむ",
     "dismiss": "閉じる",
     "downloadFailed": "ダウンロードに失敗しました。",
     "downloadingFiles": "{{count}}件のファイルをダウンロード中",
     "downloadingFiles_one": "{{count}}件のファイルをダウンロード中",
     "downloadingFiles_other": "{{count}}件のファイルをダウンロード中",
+    "expand": "アクティビティを展開",
     "modelDownload": "モデルのダウンロード",
     "pageLabel": "{{number}}ページ目: {{label}}",
     "processing": "処理中",

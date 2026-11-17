@@ -6,11 +6,13 @@
     "version": "الإصدار"
   },
   "activity": {
+    "collapse": "طي النشاط",
     "dismiss": "تجاهل",
     "downloadFailed": "فشل التنزيل.",
     "downloadingFiles": "جارٍ تنزيل {{count}} من الملفات",
     "downloadingFiles_one": "جارٍ تنزيل {{count}} ملف",
     "downloadingFiles_other": "جارٍ تنزيل {{count}} من الملفات",
+    "expand": "توسيع النشاط",
     "modelDownload": "تنزيل النموذج",
     "pageLabel": "الصفحة {{number}}: {{label}}",
     "processing": "قيد المعالجة",
