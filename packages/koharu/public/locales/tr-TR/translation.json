@@ -99,6 +99,7 @@
     "fontLabel": "{{family}}, {{source}}",
     "fonts": "Yazı tipleri",
     "noResults": "Bu aramayla eşleşen yazı tipi yok",
+    "pin": "{{family}} sabitle",
     "purpose": "Amaç",
     "script": "Yazı sistemi",
     "scripts": {
@@ -126,7 +127,8 @@
       "bundled": "Paketlenmiş",
       "system": "Sistem"
     },
-    "style": "Stil"
+    "style": "Stil",
+    "unpin": "{{family}} sabitlemesini kaldır"
   },
   "glossary": {
     "add": "Terim ekle",
@@ -484,6 +486,7 @@
     },
     "typesetting": {
       "addFamily": "Yazı tipi ailesi ekle",
+      "default": "Varsayılan",
       "defaultFamilies": "Varsayılan yazı tipi aileleri",
       "description": "Bir metin katmanına aile atanmadığında kullanılacak sıralı yazı tipi yığınını ayarlayın.",
       "empty": "Varsayılan aile yok. Koharu sistem yedeğini kullanacak.",
@@ -492,6 +495,7 @@
       "fontFallbackDescription": "Koharu, metni destekleyen ilk kullanılabilir aileyi kullanır.",
       "loadError": "Yazı tipleri yüklenemedi. Mevcut aileler yine de kaldırılabilir.",
       "loadingFonts": "Yazı tipleri yükleniyor…",
+      "makeDefault": "{{family}} varsayılan yap",
       "removeFamily": "{{family}} ailesini kaldır",
       "title": "Dizgi"
     }

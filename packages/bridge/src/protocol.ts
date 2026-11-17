@@ -534,6 +534,8 @@ export type TranslationConfig = {
 
 export type TypesettingConfig = {
 	font_families?: string[],
+	/**  Families listed first in the font picker. The renderer does not read them. */
+	pinned_fonts?: string[],
 };
 
 export type Typography = {

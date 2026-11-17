@@ -99,6 +99,7 @@
     "fontLabel": "{{family}}, {{source}}",
     "fonts": "Fonts",
     "noResults": "No fonts match this search",
+    "pin": "Pin {{family}}",
     "purpose": "Purpose",
     "script": "Script",
     "scripts": {
@@ -126,7 +127,8 @@
       "bundled": "Bundled",
       "system": "System"
     },
-    "style": "Style"
+    "style": "Style",
+    "unpin": "Unpin {{family}}"
   },
   "glossary": {
     "add": "Add term",
@@ -484,6 +486,7 @@
     },
     "typesetting": {
       "addFamily": "Add font family",
+      "default": "Default",
       "defaultFamilies": "Default font families",
       "description": "Set the ordered font stack used when a text layer has no assigned family.",
       "empty": "No default families. Koharu will use the system fallback.",
@@ -492,6 +495,7 @@
       "fontFallbackDescription": "Koharu uses the first available family that supports the text.",
       "loadError": "Fonts could not be loaded. Existing families can still be removed.",
       "loadingFonts": "Loading fonts…",
+      "makeDefault": "Make {{family}} the default",
       "removeFamily": "Remove {{family}}",
       "title": "Typesetting"
     }

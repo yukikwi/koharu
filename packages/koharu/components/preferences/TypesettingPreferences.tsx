@@ -1,6 +1,6 @@
 'use client'
 
-import { Plus, Trash2 } from 'lucide-react'
+import { ArrowUpToLine, Plus, Trash2 } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -31,6 +31,19 @@ export function TypesettingPreferences({
     next[index] = family
     onChange({ ...value, font_families: next })
   }
+
+  const makeDefault = (index: number) => {
+    onChange({
+      ...value,
+      font_families: [
+        fontFamilies[index]!,
+        ...fontFamilies.filter((_, candidate) => candidate !== index),
+      ],
+    })
+  }
+
+  const pinned = value.pinned_fonts ?? []
+  const setPinned = (pinned_fonts: string[]) => onChange({ ...value, pinned_fonts })
 
   const removeFamily = (index: number) => {
     onChange({
@@ -81,8 +94,32 @@ export function TypesettingPreferences({
                         value={family}
                         families={choices}
                         ariaLabel={t('settings.typesetting.familyLabel', { index: index + 1 })}
+                        pinned={pinned}
+                        onPinnedChange={setPinned}
                         onChange={(next) => replaceFamily(index, next)}
                       />
+                    </div>
+                    <div className='flex w-16 shrink-0 justify-center'>
+                      {index === 0 ? (
+                        <span
+                          title={t('settings.typesetting.default')}
+                          className='max-w-full truncate rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary'
+                        >
+                          {t('settings.typesetting.default')}
+                        </span>
+                      ) : (
+                        <Button
+                          type='button'
+                          variant='ghost'
+                          size='icon-sm'
+                          aria-label={t('settings.typesetting.makeDefault', { family })}
+                          title={t('settings.typesetting.makeDefault', { family })}
+                          className='shrink-0 text-muted-foreground'
+                          onClick={() => makeDefault(index)}
+                        >
+                          <ArrowUpToLine className='size-3.5' />
+                        </Button>
+                      )}
                     </div>
                     <Button
                       type='button'
@@ -119,11 +156,14 @@ export function TypesettingPreferences({
                     ? t('settings.typesetting.loadingFonts')
                     : t('settings.typesetting.addFamily')
                 }
+                pinned={pinned}
+                onPinnedChange={setPinned}
                 onChange={(family) =>
                   onChange({ ...value, font_families: [...fontFamilies, family] })
                 }
               />
             </div>
+            <span aria-hidden='true' className='w-16 shrink-0' />
             <span aria-hidden='true' className='size-7 shrink-0' />
           </div>
         </div>

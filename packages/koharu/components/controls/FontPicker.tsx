@@ -2,7 +2,7 @@
 
 import { observeElementRect, useVirtualizer } from '@tanstack/react-virtual'
 import type { TFunction } from 'i18next'
-import { ChevronDown, ListFilter, Search, X } from 'lucide-react'
+import { ChevronDown, ListFilter, Pin, PinOff, Search, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -54,6 +54,8 @@ export function FontPicker({
   size = 'default',
   ariaLabel,
   placeholder,
+  pinned,
+  onPinnedChange,
   onChange,
 }: {
   value: string
@@ -62,6 +64,9 @@ export function FontPicker({
   size?: 'default' | 'sm'
   ariaLabel?: string
   placeholder?: string
+  /** Global pinned family names, listed first in their pinned order. */
+  pinned?: string[]
+  onPinnedChange?: (pinned: string[]) => void
   onChange: (family: string) => void
 }) {
   const { t } = useTranslation()
@@ -69,17 +74,22 @@ export function FontPicker({
   const [query, setQuery] = useState('')
   const [filters, setFilters] = useState<Filters>(emptyFilters)
   const input = useRef<HTMLInputElement>(null)
+  const pinRanks = useMemo(
+    () => new Map((pinned ?? []).map((name, index) => [normalizeFontName(name), index])),
+    [pinned],
+  )
   const orderedFamilies = useMemo(
     () =>
       [...families].sort(
         (left, right) =>
+          pinRank(pinRanks, left) - pinRank(pinRanks, right) ||
           scriptRank(left) - scriptRank(right) ||
           left.name.localeCompare(right.name, undefined, {
             numeric: true,
             sensitivity: 'base',
           }),
       ),
-    [families],
+    [families, pinRanks],
   )
   const facets = useMemo(() => fontFacets(orderedFamilies), [orderedFamilies])
   const results = useMemo(() => {
@@ -188,6 +198,15 @@ export function FontPicker({
             key={`${query}:${filters.source}:${filters.script}:${filters.category}:${filters.useCase}`}
             families={results}
             value={value}
+            pinRanks={onPinnedChange ? pinRanks : null}
+            onTogglePin={(family) => {
+              const name = normalizeFontName(family)
+              onPinnedChange?.(
+                pinRanks.has(name)
+                  ? (pinned ?? []).filter((candidate) => normalizeFontName(candidate) !== name)
+                  : [...(pinned ?? []), family],
+              )
+            }}
             onSelect={(family) => {
               onChange(family)
               setOpen(false)
@@ -342,10 +361,14 @@ function FontResultSummary({
 function FontList({
   families,
   value,
+  pinRanks,
+  onTogglePin,
   onSelect,
 }: {
   families: FontFamily[]
   value: string
+  pinRanks: Map<string, number> | null
+  onTogglePin: (family: string) => void
   onSelect: (family: string) => void
 }) {
   const { t } = useTranslation()
@@ -394,28 +417,57 @@ function FontList({
               ? 'fontPicker.sources.bundled'
               : 'fontPicker.sources.system',
           )
+          const isPinned = pinRanks?.has(normalizeFontName(family.name)) ?? false
+          const lastPinned =
+            isPinned &&
+            !pinRanks?.has(normalizeFontName(families[virtualRow.index + 1]?.name ?? ''))
+          const pinLabel = t(isPinned ? 'fontPicker.unpin' : 'fontPicker.pin', {
+            family: family.name,
+          })
           return (
-            <button
+            <div
               key={virtualRow.key}
-              type='button'
-              role='option'
-              aria-label={t('fontPicker.fontLabel', { family: family.name, source })}
-              aria-selected={selected}
               className={cn(
-                'absolute inset-x-0 top-0 flex h-9.5 w-full items-center px-2 text-left hover:bg-accent focus-visible:bg-accent focus-visible:outline-none',
+                'group absolute inset-x-0 top-0 flex h-9.5 w-full items-center hover:bg-accent',
                 selected && 'bg-accent text-accent-foreground',
+                lastPinned && 'border-b border-border/80',
               )}
               style={{ transform: `translateY(${virtualRow.start}px)` }}
-              onClick={() => onSelect(family.name)}
             >
-              <div className='flex min-w-0 flex-1 flex-col justify-center gap-px'>
-                <FontPreviewLabel family={family} className='h-4.5 w-full min-w-0' />
-                <div className='flex min-w-0 items-center justify-between gap-2 text-[8px] leading-none text-muted-foreground'>
-                  <span className='min-w-0 truncate'>{family.name}</span>
-                  <span className='shrink-0'>{source}</span>
+              <button
+                type='button'
+                role='option'
+                aria-label={t('fontPicker.fontLabel', { family: family.name, source })}
+                aria-selected={selected}
+                className='flex h-full min-w-0 flex-1 items-center px-2 text-left focus-visible:bg-accent focus-visible:outline-none'
+                onClick={() => onSelect(family.name)}
+              >
+                <div className='flex min-w-0 flex-1 flex-col justify-center gap-px'>
+                  <FontPreviewLabel family={family} className='h-4.5 w-full min-w-0' />
+                  <div className='flex min-w-0 items-center justify-between gap-2 text-[8px] leading-none text-muted-foreground'>
+                    <span className='min-w-0 truncate'>{family.name}</span>
+                    <span className='shrink-0'>{source}</span>
+                  </div>
                 </div>
-              </div>
-            </button>
+              </button>
+              {pinRanks && (
+                <Button
+                  type='button'
+                  variant='ghost'
+                  size='icon-xs'
+                  aria-label={pinLabel}
+                  aria-pressed={isPinned}
+                  title={pinLabel}
+                  className={cn(
+                    'mr-1 shrink-0 text-muted-foreground hover:text-foreground focus-visible:opacity-100',
+                    isPinned ? 'text-foreground' : 'opacity-0 group-hover:opacity-100',
+                  )}
+                  onClick={() => onTogglePin(family.name)}
+                >
+                  {isPinned ? <PinOff className='size-3' /> : <Pin className='size-3' />}
+                </Button>
+              )}
+            </div>
           )
         })}
       </div>
@@ -505,6 +557,10 @@ function formatFacet(kind: 'source' | 'script' | 'metadata', value: string, t: T
 
 function normalizeFontName(value: string): string {
   return value.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase()
+}
+
+function pinRank(ranks: Map<string, number>, family: FontFamily): number {
+  return ranks.get(normalizeFontName(family.name)) ?? ranks.size
 }
 
 function scriptRank(family: FontFamily): number {

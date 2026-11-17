@@ -27,7 +27,7 @@ import { useTranslation } from 'react-i18next'
 import { ColorWell } from '@/components/controls/ColorWell'
 import { CommitTextarea } from '@/components/controls/CommitTextarea'
 import { FontPicker } from '@/components/controls/FontPicker'
-import { call } from '@/lib/backend'
+import { call, savePreferences } from '@/lib/backend'
 import {
   expandLayerSelection,
   isGroupLayer,
@@ -36,7 +36,7 @@ import {
   layerChildren,
 } from '@/lib/document'
 import { pageKey, projectKey, queryClient, refresh, useFonts, usePage } from '@/lib/queries'
-import { useKoharuStore } from '@/lib/store'
+import { receivePreferences, useKoharuStore } from '@/lib/store'
 import { previewCanvasOpacity } from '@koharu/bridge/canvas'
 import {
   commands,
@@ -134,6 +134,10 @@ function TypeInspector() {
   const page = usePage().data
   const selectedIds = useKoharuStore((state) => state.selectedLayers)
   const availableFonts = useFonts().data
+  const preferences = useKoharuStore((state) => state.preferences)
+  // Unassigned text renders with the first family of the global typesetting stack.
+  const defaultFamily = preferences?.typesetting.font_families?.[0] ?? defaultFont.name
+  const pinnedFonts = preferences?.typesetting.pinned_fonts ?? []
   const expandedSelection = page ? expandLayerSelection(page.layers, selectedIds) : []
   const selected =
     page?.layers.filter(isTextLayer).filter((layer) => expandedSelection.includes(layer.id)) ?? []
@@ -178,7 +182,7 @@ function TypeInspector() {
   }, [availableFonts])
   const size = Math.round((typography.size ?? 24) * 100) / 100
   const weight = typography.font_weight ?? 400
-  const selectedFamily = findFontFamily(families, typography.preferred_font ?? defaultFont.name)
+  const selectedFamily = findFontFamily(families, typography.preferred_font ?? defaultFamily)
   const styles = usableFontStyles(selectedFamily)
   const style = styles.includes(typography.font_style ?? 'normal')
     ? (typography.font_style ?? 'normal')
@@ -199,10 +203,20 @@ function TypeInspector() {
         <div className='grid min-w-0 grid-cols-[minmax(0,1fr)_2.5rem] gap-1.5'>
           <InspectorField label={t('inspector.font')}>
             <FontPicker
-              value={typography.preferred_font ?? defaultFont.name}
+              value={typography.preferred_font ?? defaultFamily}
               families={families}
               disabled={disabled}
               size='sm'
+              pinned={pinnedFonts}
+              onPinnedChange={(pinned_fonts) => {
+                if (!preferences) return
+                void savePreferences(preferences.pipeline, preferences.providers, {
+                  ...preferences.typesetting,
+                  pinned_fonts,
+                })
+                  .then(receivePreferences)
+                  .catch(() => undefined)
+              }}
               onChange={(preferred_font) => {
                 const family = findFontFamily(families, preferred_font)
                 const nextStyles = usableFontStyles(family)

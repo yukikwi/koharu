@@ -99,6 +99,7 @@
     "fontLabel": "{{family}}, {{source}}",
     "fonts": "Fontes",
     "noResults": "Nenhuma fonte corresponde à busca",
+    "pin": "Fixar {{family}}",
     "purpose": "Finalidade",
     "script": "Sistema de escrita",
     "scripts": {
@@ -126,7 +127,8 @@
       "bundled": "Incluídas",
       "system": "Sistema"
     },
-    "style": "Estilo"
+    "style": "Estilo",
+    "unpin": "Desafixar {{family}}"
   },
   "glossary": {
     "add": "Adicionar termo",
@@ -484,6 +486,7 @@
     },
     "typesetting": {
       "addFamily": "Adicionar família de fontes",
+      "default": "Padrão",
       "defaultFamilies": "Famílias de fontes padrão",
       "description": "Defina a pilha ordenada de fontes usada quando uma camada de texto não tem família atribuída.",
       "empty": "Nenhuma família padrão. O Koharu usará a alternativa do sistema.",
@@ -492,6 +495,7 @@
       "fontFallbackDescription": "O Koharu usa a primeira família disponível compatível com o texto.",
       "loadError": "Não foi possível carregar as fontes. As famílias existentes ainda podem ser removidas.",
       "loadingFonts": "Carregando fontes…",
+      "makeDefault": "Tornar {{family}} o padrão",
       "removeFamily": "Remover {{family}}",
       "title": "Composição tipográfica"
     }

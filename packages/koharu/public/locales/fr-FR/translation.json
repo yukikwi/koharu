@@ -99,6 +99,7 @@
     "fontLabel": "{{family}}, {{source}}",
     "fonts": "Polices",
     "noResults": "Aucune police ne correspond à cette recherche",
+    "pin": "Épingler {{family}}",
     "purpose": "Usage",
     "script": "Écriture",
     "scripts": {
@@ -126,7 +127,8 @@
       "bundled": "Intégrées",
       "system": "Système"
     },
-    "style": "Style"
+    "style": "Style",
+    "unpin": "Désépingler {{family}}"
   },
   "glossary": {
     "add": "Ajouter un terme",
@@ -484,6 +486,7 @@
     },
     "typesetting": {
       "addFamily": "Ajouter une famille de polices",
+      "default": "Par défaut",
       "defaultFamilies": "Familles de polices par défaut",
       "description": "Définissez la liste ordonnée de polices utilisée lorsqu’aucune famille n’est attribuée à un calque de texte.",
       "empty": "Aucune famille par défaut. Koharu utilisera la police de secours du système.",
@@ -492,6 +495,7 @@
       "fontFallbackDescription": "Koharu utilise la première famille disponible qui prend en charge le texte.",
       "loadError": "Impossible de charger les polices. Les familles existantes peuvent toujours être supprimées.",
       "loadingFonts": "Chargement des polices…",
+      "makeDefault": "Définir {{family}} par défaut",
       "removeFamily": "Retirer {{family}}",
       "title": "Lettrage"
     }
