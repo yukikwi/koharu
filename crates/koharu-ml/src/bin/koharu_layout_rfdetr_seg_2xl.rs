@@ -2,13 +2,15 @@ use std::path::{Path, PathBuf};
 
 use ab_glyph::FontArc;
 use anyhow::{Context, Result};
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use image::{Rgba, RgbaImage};
 use imageproc::{
     drawing::{draw_filled_rect_mut, draw_hollow_rect_mut, draw_text_mut, text_size},
     rect::Rect,
 };
-use koharu_ml::koharu_layout_rfdetr_seg_2xl::{KoharuLayoutDetections, KoharuLayoutRFDetrSeg2XL};
+use koharu_ml::koharu_layout_rfdetr_seg_2xl::{
+    KoharuLayoutCheckpoint, KoharuLayoutDetections, KoharuLayoutRFDetrSeg2XL,
+};
 
 #[derive(Debug, Parser)]
 struct Cli {
@@ -17,6 +19,9 @@ struct Cli {
 
     #[arg(short, long, value_name = "FILE")]
     output: Option<PathBuf>,
+
+    #[arg(long, value_enum, default_value_t = Checkpoint::Seg2xl1152)]
+    checkpoint: Checkpoint,
 
     #[arg(long, value_name = "FILE")]
     annotated_output: Option<PathBuf>,
@@ -44,6 +49,14 @@ struct Cli {
     cpu: bool,
 }
 
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum Checkpoint {
+    #[value(name = "seg-2xl-1152")]
+    Seg2xl1152,
+    #[value(name = "highres")]
+    Highres,
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
@@ -51,7 +64,14 @@ async fn main() -> Result<()> {
     let image = image::open(&cli.input)?;
 
     koharu_ml::init().await?;
-    let model = KoharuLayoutRFDetrSeg2XL::load(koharu_ml::device(cli.cpu)).await?;
+    let model = KoharuLayoutRFDetrSeg2XL::load(
+        koharu_ml::device(cli.cpu),
+        match cli.checkpoint {
+            Checkpoint::Seg2xl1152 => KoharuLayoutCheckpoint::Seg2XL1152,
+            Checkpoint::Highres => KoharuLayoutCheckpoint::HighRes,
+        },
+    )
+    .await?;
     let mut thresholds = model.recommended_thresholds();
     if let Some(threshold) = cli.text_threshold {
         thresholds.text = threshold;

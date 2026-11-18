@@ -113,6 +113,7 @@ function ModelOptions({
   const { t } = useTranslation()
   switch (model.model) {
     case 'koharu-layout-rfdetr-seg-2xl':
+    case 'koharu-layout-highres':
       return (
         <div className='grid grid-cols-3 gap-2'>
           <NumberField

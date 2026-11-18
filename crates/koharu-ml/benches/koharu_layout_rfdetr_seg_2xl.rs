@@ -2,7 +2,7 @@ use std::{hint::black_box, path::PathBuf, time::Duration};
 
 use anyhow::Result;
 use criterion::Criterion;
-use koharu_ml::koharu_layout_rfdetr_seg_2xl::KoharuLayoutRFDetrSeg2XL;
+use koharu_ml::koharu_layout_rfdetr_seg_2xl::{KoharuLayoutCheckpoint, KoharuLayoutRFDetrSeg2XL};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -11,7 +11,11 @@ async fn main() -> Result<()> {
 
     koharu_ml::init().await?;
     let image = image::open(input)?;
-    let model = KoharuLayoutRFDetrSeg2XL::load(koharu_ml::Device::default()).await?;
+    let model = KoharuLayoutRFDetrSeg2XL::load(
+        koharu_ml::Device::default(),
+        KoharuLayoutCheckpoint::Seg2XL1152,
+    )
+    .await?;
 
     let warmup = model.inference(&image)?;
     black_box(warmup);

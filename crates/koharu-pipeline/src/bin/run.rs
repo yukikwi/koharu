@@ -66,6 +66,8 @@ impl Committer for SessionCommitter<'_> {
 enum DetectionChoice {
     #[value(name = "koharu-layout-rfdetr-seg-2xl")]
     KoharuLayoutRFDetrSeg2XL,
+    #[value(name = "koharu-layout-highres")]
+    KoharuLayoutHighRes,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -108,6 +110,9 @@ impl Arguments {
                     DetectionModel::KoharuLayoutRFDetrSeg2XL(
                         KoharuLayoutRFDetrSeg2XLConfig::default(),
                     )
+                }
+                DetectionChoice::KoharuLayoutHighRes => {
+                    DetectionModel::KoharuLayoutHighRes(KoharuLayoutRFDetrSeg2XLConfig::default())
                 }
             },
             ocr: match self.ocr {

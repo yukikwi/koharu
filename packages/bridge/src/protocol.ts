@@ -142,6 +142,8 @@ export type DeepSeekConfig = Record<string, never>;
 
 export type DetectionModel = {
 	model: "koharu-layout-rfdetr-seg-2xl",
+} & KoharuLayoutRFDetrSeg2XLConfig | {
+	model: "koharu-layout-highres",
 } & KoharuLayoutRFDetrSeg2XLConfig;
 
 export type DeviceResources = {
@@ -426,6 +428,7 @@ export type Preferences = {
 
 export type ProcessorConfig = {
 	"koharu-layout-rfdetr-seg-2xl"?: KoharuLayoutRFDetrSeg2XLConfig | null,
+	"koharu-layout-highres"?: KoharuLayoutRFDetrSeg2XLConfig | null,
 	"flux2-klein"?: Flux2KleinConfig | null,
 	"flux3-klein"?: Flux3KleinConfig | null,
 	"minimax-h3-image"?: MiniMaxH3ImageConfig | null,

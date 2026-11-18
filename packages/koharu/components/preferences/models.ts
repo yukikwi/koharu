@@ -11,7 +11,7 @@ export type ModelStage = Exclude<Stage, 'translation'>
 export type ModelName = PipelineModel['model']
 
 export const modelOptions = {
-  detection: ['koharu-layout-rfdetr-seg-2xl'],
+  detection: ['koharu-layout-rfdetr-seg-2xl', 'koharu-layout-highres'],
   ocr: ['paddleocr-vl-1.6', 'manga-ocr', 'manga-ocr-ar', 'baberu-ocr', 'hayai-ocr', 'dots.ocr'],
   inpainting: [
     'lama',
@@ -25,6 +25,7 @@ export const modelOptions = {
 
 export const modelNames: Record<ModelName, string> = {
   'koharu-layout-rfdetr-seg-2xl': 'Koharu Layout RF-DETR Seg 2XL',
+  'koharu-layout-highres': 'Koharu Layout HighRes',
   'paddleocr-vl-1.6': 'PaddleOCR-VL 1.6',
   'manga-ocr': 'Manga OCR',
   'manga-ocr-ar': 'Manga OCR AR',
@@ -48,6 +49,7 @@ export const MINIMAX_H3_IMAGE_PROMPT =
 export function defaultModel(model: ModelName): PipelineModel {
   switch (model) {
     case 'koharu-layout-rfdetr-seg-2xl':
+    case 'koharu-layout-highres':
       return { model, text_threshold: null, bubble_threshold: null, panel_threshold: null }
     case 'paddleocr-vl-1.6':
     case 'manga-ocr':
@@ -85,22 +87,21 @@ export function replaceStage(
   model: PipelineModel,
 ): PipelineConfig {
   switch (stage) {
-    case 'detection':
+    case 'detection': {
+      const detection = model as DetectionModel
       return {
         ...config,
-        detection: model as DetectionModel,
+        detection,
         processor: {
           ...config.processor,
-          'koharu-layout-rfdetr-seg-2xl':
-            model.model === 'koharu-layout-rfdetr-seg-2xl'
-              ? {
-                  text_threshold: model.text_threshold ?? null,
-                  bubble_threshold: model.bubble_threshold ?? null,
-                  panel_threshold: model.panel_threshold ?? null,
-                }
-              : (config.processor?.['koharu-layout-rfdetr-seg-2xl'] ?? null),
+          [detection.model]: {
+            text_threshold: detection.text_threshold ?? null,
+            bubble_threshold: detection.bubble_threshold ?? null,
+            panel_threshold: detection.panel_threshold ?? null,
+          },
         },
       }
+    }
     case 'ocr':
       return { ...config, ocr: model as OcrModel }
     case 'inpainting':

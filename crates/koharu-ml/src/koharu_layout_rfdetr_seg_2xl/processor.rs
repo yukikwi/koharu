@@ -91,7 +91,7 @@ impl KoharuLayoutRFDetrImageProcessor {
             output.pred_boxes.size()
         );
         ensure!(
-            output.pred_masks.size() == [1, 300, 288, 288],
+            output.pred_masks.size() == [1, 300, self.resolution / 4, self.resolution / 4],
             "unexpected RF-DETR mask shape {:?}",
             output.pred_masks.size()
         );

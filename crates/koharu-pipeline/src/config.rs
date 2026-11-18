@@ -66,9 +66,6 @@ impl Serialize for PipelineConfig {
     where
         S: Serializer,
     {
-        let detection = match &self.detection {
-            DetectionModel::KoharuLayoutRFDetrSeg2XL(_) => "koharu-layout-rfdetr-seg-2xl",
-        };
         let ocr = match &self.ocr {
             OcrModel::PaddleOcrVl1_6 => "paddleocr-vl-1.6",
             OcrModel::MangaOcr => "manga-ocr",
@@ -78,10 +75,18 @@ impl Serialize for PipelineConfig {
             OcrModel::DotsOcr => "dots.ocr",
         };
         let mut processor = self.processor.clone();
-        let DetectionModel::KoharuLayoutRFDetrSeg2XL(config) = &self.detection;
-        processor
-            .koharu_layout_rfdetr_seg_2xl
-            .get_or_insert_with(|| config.clone());
+        match &self.detection {
+            DetectionModel::KoharuLayoutRFDetrSeg2XL(config) => {
+                processor
+                    .koharu_layout_rfdetr_seg_2xl
+                    .get_or_insert_with(|| config.clone());
+            }
+            DetectionModel::KoharuLayoutHighRes(config) => {
+                processor
+                    .koharu_layout_highres
+                    .get_or_insert_with(|| config.clone());
+            }
+        }
         for model in [&self.inpainting, &self.remove] {
             match model {
                 InpaintingModel::Flux2Klein(config) => {
@@ -103,7 +108,7 @@ impl Serialize for PipelineConfig {
         }
         PipelineFile {
             detection: ModelSelection {
-                model: detection.to_owned(),
+                model: self.detection.name().to_owned(),
             },
             ocr: ModelSelection {
                 model: ocr.to_owned(),
@@ -131,6 +136,12 @@ impl<'de> Deserialize<'de> for PipelineConfig {
             "koharu-layout-rfdetr-seg-2xl" => DetectionModel::KoharuLayoutRFDetrSeg2XL(
                 file.processor
                     .koharu_layout_rfdetr_seg_2xl
+                    .clone()
+                    .unwrap_or_default(),
+            ),
+            "koharu-layout-highres" => DetectionModel::KoharuLayoutHighRes(
+                file.processor
+                    .koharu_layout_highres
                     .clone()
                     .unwrap_or_default(),
             ),
@@ -227,6 +238,12 @@ impl PipelineConfig {
                         .unwrap_or_else(|| config.clone()),
                 ))
             }
+            DetectionModel::KoharuLayoutHighRes(config) => Ok(DetectionModel::KoharuLayoutHighRes(
+                self.processor
+                    .koharu_layout_highres
+                    .clone()
+                    .unwrap_or_else(|| config.clone()),
+            )),
         }
     }
 
@@ -293,6 +310,8 @@ impl PipelineConfig {
 pub struct ProcessorConfig {
     #[serde(rename = "koharu-layout-rfdetr-seg-2xl")]
     pub koharu_layout_rfdetr_seg_2xl: Option<KoharuLayoutRFDetrSeg2XLConfig>,
+    #[serde(rename = "koharu-layout-highres")]
+    pub koharu_layout_highres: Option<KoharuLayoutRFDetrSeg2XLConfig>,
     #[serde(rename = "flux2-klein")]
     pub flux2_klein: Option<Flux2KleinConfig>,
     #[serde(rename = "flux3-klein")]
@@ -308,6 +327,17 @@ pub struct ProcessorConfig {
 pub enum DetectionModel {
     #[serde(rename = "koharu-layout-rfdetr-seg-2xl")]
     KoharuLayoutRFDetrSeg2XL(KoharuLayoutRFDetrSeg2XLConfig),
+    #[serde(rename = "koharu-layout-highres")]
+    KoharuLayoutHighRes(KoharuLayoutRFDetrSeg2XLConfig),
+}
+
+impl DetectionModel {
+    pub(crate) fn name(&self) -> &'static str {
+        match self {
+            Self::KoharuLayoutRFDetrSeg2XL(_) => "koharu-layout-rfdetr-seg-2xl",
+            Self::KoharuLayoutHighRes(_) => "koharu-layout-highres",
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
@@ -487,6 +517,31 @@ mod tests {
             InpaintingModel::Flux2Klein(config)
                 if config.prompt == "Reconstruct the illustration without text."
         ));
+    }
+
+    #[test]
+    fn layout_checkpoints_keep_separate_threshold_profiles() {
+        let config = toml::from_str::<PipelineConfig>(
+            r#"
+                [detection]
+                model = "koharu-layout-highres"
+
+                [processor."koharu-layout-rfdetr-seg-2xl"]
+                text_threshold = 0.5
+
+                [processor."koharu-layout-highres"]
+                text_threshold = 0.3
+            "#,
+        )
+        .unwrap();
+
+        assert!(matches!(
+            config.detection().unwrap(),
+            DetectionModel::KoharuLayoutHighRes(settings) if settings.text_threshold == Some(0.3)
+        ));
+        let document = toml::to_string(&config).unwrap();
+        assert!(document.contains("[detection]\nmodel = \"koharu-layout-highres\""));
+        assert_eq!(toml::from_str::<PipelineConfig>(&document).unwrap(), config);
     }
 
     #[test]

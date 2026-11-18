@@ -12,7 +12,6 @@ use koharu_torch::{
     nn::{self, Module},
 };
 
-const RESOLUTION: i64 = 1152;
 const PATCH_SIZE: i64 = 12;
 const NUM_WINDOWS: i64 = 2;
 const DINO_DIM: i64 = 384;
@@ -33,6 +32,7 @@ pub(super) struct Output {
 #[derive(Debug)]
 pub(super) struct Model {
     var_store: nn::VarStore,
+    resolution: i64,
     backbone: Backbone,
     transformer: Transformer,
     segmentation_head: SegmentationHead,
@@ -43,12 +43,14 @@ pub(super) struct Model {
 }
 
 impl Model {
-    pub fn new(device: Device) -> Self {
+    /// `resolution` comes from the checkpoint config; it sizes the DINOv2
+    /// absolute position embeddings and the mask output.
+    pub fn new(device: Device, resolution: i64) -> Self {
         let mut var_store = nn::VarStore::new(device);
         crate::backend::set_precision(&mut var_store);
         let root = var_store.root();
         // Joiner is nn.Sequential(backbone, position_embedding), hence the `0`.
-        let backbone = Backbone::new(&(&root / "backbone" / 0));
+        let backbone = Backbone::new(&(&root / "backbone" / 0), resolution);
         let transformer = Transformer::new(&(&root / "transformer"));
         let segmentation_head = SegmentationHead::new(&(&root / "segmentation_head"));
         let class_embed = nn::linear(
@@ -72,6 +74,7 @@ impl Model {
         );
         Self {
             var_store,
+            resolution,
             backbone,
             transformer,
             segmentation_head,
@@ -116,9 +119,11 @@ impl Model {
         )
         .i(-1);
         let pred_logits = self.class_embed.forward(&hs).i(-1);
-        let pred_masks =
-            self.segmentation_head
-                .forward(&features[0], &hs.i(-1), (RESOLUTION, RESOLUTION));
+        let pred_masks = self.segmentation_head.forward(
+            &features[0],
+            &hs.i(-1),
+            (self.resolution, self.resolution),
+        );
         Output {
             pred_logits,
             pred_boxes,
@@ -135,9 +140,9 @@ struct Backbone {
 }
 
 impl Backbone {
-    fn new(path: &nn::Path<'_>) -> Self {
+    fn new(path: &nn::Path<'_>, resolution: i64) -> Self {
         Self {
-            encoder: DinoBackbone::new(&(path / "encoder" / "encoder")),
+            encoder: DinoBackbone::new(&(path / "encoder" / "encoder"), resolution),
             projector: MultiScaleProjector::new(&(path / "projector")),
         }
     }
@@ -156,9 +161,9 @@ struct DinoBackbone {
 }
 
 impl DinoBackbone {
-    fn new(path: &nn::Path<'_>) -> Self {
+    fn new(path: &nn::Path<'_>, resolution: i64) -> Self {
         Self {
-            embeddings: DinoEmbeddings::new(&(path / "embeddings")),
+            embeddings: DinoEmbeddings::new(&(path / "embeddings"), resolution),
             layers: (0..12)
                 .map(|index| DinoLayer::new(&(path / "encoder" / "layer" / index)))
                 .collect(),
@@ -214,6 +219,7 @@ impl DinoBackbone {
 
 #[derive(Debug)]
 struct DinoEmbeddings {
+    resolution: i64,
     cls_token: Tensor,
     _mask_token: Tensor,
     position_embeddings: Tensor,
@@ -221,13 +227,14 @@ struct DinoEmbeddings {
 }
 
 impl DinoEmbeddings {
-    fn new(path: &nn::Path<'_>) -> Self {
+    fn new(path: &nn::Path<'_>, resolution: i64) -> Self {
         Self {
+            resolution,
             cls_token: path.var("cls_token", &[1, 1, DINO_DIM], nn::Init::Const(0.0)),
             _mask_token: path.var("mask_token", &[1, DINO_DIM], nn::Init::Const(0.0)),
             position_embeddings: path.var(
                 "position_embeddings",
-                &[1, (RESOLUTION / PATCH_SIZE).pow(2) + 1, DINO_DIM],
+                &[1, (resolution / PATCH_SIZE).pow(2) + 1, DINO_DIM],
                 nn::Init::Const(0.0),
             ),
             projection: nn::conv2d(
@@ -245,8 +252,8 @@ impl DinoEmbeddings {
 
     fn forward(&self, pixel_values: &Tensor) -> Tensor {
         let size = pixel_values.size();
-        assert_eq!(size[2], RESOLUTION);
-        assert_eq!(size[3], RESOLUTION);
+        assert_eq!(size[2], self.resolution);
+        assert_eq!(size[3], self.resolution);
         let batch_size = size[0];
         let embeddings = self
             .projection
@@ -261,8 +268,8 @@ impl DinoEmbeddings {
             1,
         ) + &self.position_embeddings;
 
-        let height = RESOLUTION / PATCH_SIZE;
-        let width = RESOLUTION / PATCH_SIZE;
+        let height = self.resolution / PATCH_SIZE;
+        let width = self.resolution / PATCH_SIZE;
         let height_per_window = height / NUM_WINDOWS;
         let width_per_window = width / NUM_WINDOWS;
         let cls = embeddings.i((.., ..1)).repeat([NUM_WINDOWS.pow(2), 1, 1]);
@@ -1192,7 +1199,7 @@ mod tests {
     #[ignore = "requires the dynamically loaded LibTorch runtime"]
     async fn complete_checkpoint_tree_has_600_tensors() {
         crate::init().await.unwrap();
-        let model = Model::new(Device::Cpu);
+        let model = Model::new(Device::Cpu, 1152);
         assert_eq!(model.var_store.variables().len(), 600);
     }
 }

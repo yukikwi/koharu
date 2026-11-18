@@ -85,6 +85,7 @@ Detection, OCR, and inpainting models are selected separately.
 The detection model finds text regions, speech bubbles, and segmentation masks.
 
 - [Koharu Layout RF-DETR Seg 2XL](https://huggingface.co/mayocream/koharu-layout-rfdetr-seg-2xl-1152)
+- [Koharu Layout HighRes](https://huggingface.co/mayocream/koharu-layout-highres)
 
 #### OCR
 

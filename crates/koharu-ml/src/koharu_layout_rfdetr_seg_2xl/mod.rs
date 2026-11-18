@@ -1,7 +1,9 @@
-//! High-resolution manga layout instance segmentation with RF-DETR Seg 2XL.
+//! Manga layout instance segmentation with RF-DETR Seg 2XL.
 //!
-//! Checkpoint and strict Python loader:
+//! Checkpoints share one architecture and parameter tree; they differ only in
+//! input resolution, which sizes the DINOv2 position embeddings:
 //! https://huggingface.co/mayocream/koharu-layout-rfdetr-seg-2xl-1152/tree/aed55fdb8ca953c6bec33cf6ed6dd52a9b72bfa2
+//! https://huggingface.co/mayocream/koharu-layout-highres/tree/68077eb09401a46e548190ff2786bd405113ea8b
 //! RF-DETR upstream implementation:
 //! https://github.com/roboflow/rf-detr/tree/4ab7c18729de9d02ffd0495795d0831b5630f01b
 
@@ -11,6 +13,7 @@ mod processor;
 
 use anyhow::{Context, Result};
 use image::DynamicImage;
+use koharu_runtime::HuggingFaceFile;
 use koharu_torch::Device;
 
 use crate::backend::TryIntoDevice;
@@ -25,10 +28,39 @@ pub use self::{
 
 use self::model::Model;
 
-crate::model_repository!("mayocream/koharu-layout-rfdetr-seg-2xl-1152" @ "aed55fdb8ca953c6bec33cf6ed6dd52a9b72bfa2" {
-    CONFIG = "inference_config.json",
-    WEIGHTS = "model.safetensors",
-});
+/// A published KoharuLayout RF-DETR Seg 2XL checkpoint.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KoharuLayoutCheckpoint {
+    /// 1152 px input.
+    Seg2XL1152,
+    /// 1920 px input, fine-tuned from the 1152 checkpoint.
+    HighRes,
+}
+
+impl KoharuLayoutCheckpoint {
+    #[must_use]
+    pub const fn repository(self) -> &'static str {
+        match self {
+            Self::Seg2XL1152 => "mayocream/koharu-layout-rfdetr-seg-2xl-1152",
+            Self::HighRes => "mayocream/koharu-layout-highres",
+        }
+    }
+
+    const fn files(self) -> (HuggingFaceFile<'static>, HuggingFaceFile<'static>) {
+        let (revision, config) = match self {
+            Self::Seg2XL1152 => (
+                "aed55fdb8ca953c6bec33cf6ed6dd52a9b72bfa2",
+                "inference_config.json",
+            ),
+            Self::HighRes => ("68077eb09401a46e548190ff2786bd405113ea8b", "config.json"),
+        };
+        let repository = self.repository();
+        (
+            HuggingFaceFile::pinned(repository, revision, config),
+            HuggingFaceFile::pinned(repository, revision, "model.safetensors"),
+        )
+    }
+}
 
 #[derive(Debug)]
 pub struct KoharuLayoutRFDetrSeg2XL {
@@ -38,19 +70,20 @@ pub struct KoharuLayoutRFDetrSeg2XL {
 }
 
 impl KoharuLayoutRFDetrSeg2XL {
-    pub async fn load(device: crate::Device) -> Result<Self> {
+    pub async fn load(device: crate::Device, checkpoint: KoharuLayoutCheckpoint) -> Result<Self> {
         let device: Device = device.try_into_device()?;
-        let config_path = CONFIG
+        let (config, weights) = checkpoint.files();
+        let config_path = config
             .resolve()
             .await
             .context("failed to resolve KoharuLayout RF-DETR inference config")?;
-        let weights_path = WEIGHTS
+        let weights_path = weights
             .resolve()
             .await
             .context("failed to resolve KoharuLayout RF-DETR weights")?;
         let config = KoharuLayoutRFDetrSeg2XLConfig::from_file(&config_path)?;
         let processor = KoharuLayoutRFDetrImageProcessor::new(&config)?;
-        let mut model = Model::new(device);
+        let mut model = Model::new(device, config.resolution);
         model
             .load(&weights_path)
             .with_context(|| format!("failed to load {}", weights_path.display()))?;
@@ -89,7 +122,7 @@ mod tests {
 
     use anyhow::Result;
 
-    use super::KoharuLayoutRFDetrSeg2XL;
+    use super::{KoharuLayoutCheckpoint, KoharuLayoutRFDetrSeg2XL};
 
     #[tokio::test]
     #[ignore = "downloads the checkpoint and requires CUDA"]
@@ -99,7 +132,11 @@ mod tests {
             PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .join("benches/fixtures/object_detection/1.jpg"),
         )?;
-        let model = KoharuLayoutRFDetrSeg2XL::load(crate::Device::cuda(0)).await?;
+        let model = KoharuLayoutRFDetrSeg2XL::load(
+            crate::Device::cuda(0),
+            KoharuLayoutCheckpoint::Seg2XL1152,
+        )
+        .await?;
         let result = model.inference(&image)?;
 
         // RF-DETR 4ab7c18, CUDA BF16, shape=(1152, 1152), antialias disabled.

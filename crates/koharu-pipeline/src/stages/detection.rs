@@ -18,8 +18,8 @@ use imageproc::{
     morphology::{close, dilate},
 };
 use koharu_ml::koharu_layout_rfdetr_seg_2xl::{
-    KoharuLayoutDetection, KoharuLayoutDetections, KoharuLayoutMask, KoharuLayoutRFDetrSeg2XL,
-    KoharuLayoutThresholds,
+    KoharuLayoutCheckpoint, KoharuLayoutDetection, KoharuLayoutDetections, KoharuLayoutMask,
+    KoharuLayoutRFDetrSeg2XL, KoharuLayoutThresholds,
 };
 use koharu_scene::{
     AssetInput, AssetMetadata, AssetRole, At, BubbleRegion, DetectionAnalysis, DetectionLabel,
@@ -34,8 +34,6 @@ use specta::Type;
 use super::{StageInput, StageProcessor, finish, generation};
 use crate::{DetectionModel, ModelCell};
 
-const MODEL_ID: &str = "mayocream/koharu-layout-rfdetr-seg-2xl-1152";
-const MODEL_NAME: &str = "koharu-layout-rfdetr-seg-2xl";
 const PRODUCER: &str = "dev.koharu.pipeline.detection";
 const ANGLE_SNAP_DEGREES: f32 = 3.0;
 const ANGLE_SEARCH_HALF_STEPS: i32 = 90;
@@ -65,7 +63,8 @@ pub(super) struct Processor {
 
 impl Processor {
     pub(super) fn new(mut config: DetectionModel, device: koharu_ml::Device) -> Self {
-        let DetectionModel::KoharuLayoutRFDetrSeg2XL(settings) = &mut config;
+        let (DetectionModel::KoharuLayoutRFDetrSeg2XL(settings)
+        | DetectionModel::KoharuLayoutHighRes(settings)) = &mut config;
         for (name, value) in [
             ("text", &mut settings.text_threshold),
             ("bubble", &mut settings.bubble_threshold),
@@ -96,7 +95,7 @@ impl Processor {
 #[async_trait]
 impl StageProcessor for Processor {
     fn model(&self) -> &'static str {
-        MODEL_NAME
+        self.config.name()
     }
 
     fn skip(&self, input: &StageInput) -> Result<bool> {
@@ -136,19 +135,28 @@ impl StageProcessor for Processor {
 
 struct Model {
     network: Arc<Mutex<KoharuLayoutRFDetrSeg2XL>>,
+    checkpoint: KoharuLayoutCheckpoint,
     thresholds: KoharuLayoutThresholds,
 }
 
 impl Model {
     async fn load(device: koharu_ml::Device, config: &DetectionModel) -> Result<Self> {
-        let DetectionModel::KoharuLayoutRFDetrSeg2XL(config) = config;
-        let network = KoharuLayoutRFDetrSeg2XL::load(device).await?;
+        let (checkpoint, config) = match config {
+            DetectionModel::KoharuLayoutRFDetrSeg2XL(config) => {
+                (KoharuLayoutCheckpoint::Seg2XL1152, config)
+            }
+            DetectionModel::KoharuLayoutHighRes(config) => {
+                (KoharuLayoutCheckpoint::HighRes, config)
+            }
+        };
+        let network = KoharuLayoutRFDetrSeg2XL::load(device, checkpoint).await?;
         let mut thresholds = network.recommended_thresholds();
         thresholds.text = config.text_threshold.unwrap_or(thresholds.text);
         thresholds.bubble = config.bubble_threshold.unwrap_or(thresholds.bubble);
         thresholds.panel = config.panel_threshold.unwrap_or(thresholds.panel);
         Ok(Self {
             network: Arc::new(Mutex::new(network)),
+            checkpoint,
             thresholds,
         })
     }
@@ -161,7 +169,13 @@ impl Model {
             .await?
             .ok_or_else(|| anyhow!("page {page} has no source image"))?;
         let output = self.detect(image.clone()).await?;
-        build_patch(&input, &image, output, &generation(PRODUCER, MODEL_ID)?).await
+        build_patch(
+            &input,
+            &image,
+            output,
+            &generation(PRODUCER, self.checkpoint.repository())?,
+        )
+        .await
     }
 
     async fn detect(&self, image: Arc<DynamicImage>) -> Result<KoharuLayoutDetections> {
@@ -1852,7 +1866,9 @@ mod tests {
         distance_transform::Norm,
         morphology::{close, dilate},
     };
-    use koharu_ml::koharu_layout_rfdetr_seg_2xl::{KoharuLayoutDetection, KoharuLayoutMask};
+    use koharu_ml::koharu_layout_rfdetr_seg_2xl::{
+        KoharuLayoutCheckpoint, KoharuLayoutDetection, KoharuLayoutMask,
+    };
     use koharu_scene::{
         At, BubbleRegion, FitsTo, FlowsIn, Geometry, Inside, Origin, PageDraft, Session,
         TextLayout, TextLayoutKind, TextRegion, Typography, WritingMode,
@@ -1877,7 +1893,9 @@ mod tests {
             koharu_ml::Device::cpu(),
         );
 
-        let DetectionModel::KoharuLayoutRFDetrSeg2XL(settings) = &processor.config;
+        let DetectionModel::KoharuLayoutRFDetrSeg2XL(settings) = &processor.config else {
+            unreachable!()
+        };
         assert_eq!(settings.text_threshold, None);
         assert_eq!(settings.bubble_threshold, None);
         assert_eq!(settings.panel_threshold, Some(0.55));
@@ -1931,7 +1949,11 @@ mod tests {
             pixels: vec![u8::MAX],
         };
         let text_mask = bubble_mask.clone();
-        let generation = generation(super::PRODUCER, super::MODEL_ID).unwrap();
+        let generation = generation(
+            super::PRODUCER,
+            KoharuLayoutCheckpoint::Seg2XL1152.repository(),
+        )
+        .unwrap();
         let mut ids = None;
         let patch = session
             .snapshot()
@@ -2258,7 +2280,11 @@ mod tests {
         let page = page.unwrap();
         let (image, detection) = outlined_text(3, [0, 0, 0], [255, 255, 255]);
         let inferred = infer_typography(&image, &detection);
-        let generation = generation(super::PRODUCER, super::MODEL_ID).unwrap();
+        let generation = generation(
+            super::PRODUCER,
+            KoharuLayoutCheckpoint::Seg2XL1152.repository(),
+        )
+        .unwrap();
         let mut layer = None;
         let patch = snapshot
             .patch(|edit| {
