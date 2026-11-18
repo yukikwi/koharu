@@ -20,6 +20,7 @@ pub mod koharu_layout_rfdetr_seg_2xl;
 pub mod lama;
 pub mod llm;
 pub mod manga_ocr;
+pub mod manga_ocr_ar;
 pub mod manga_text_mask;
 pub mod minimax_h3_image;
 pub mod paddle_ocr_vl;

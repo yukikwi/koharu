@@ -71,6 +71,8 @@ enum OcrChoice {
     PaddleOcrVl1_6,
     #[value(name = "manga-ocr")]
     MangaOcr,
+    #[value(name = "manga-ocr-ar")]
+    MangaOcrAr,
     #[value(name = "baberu-ocr")]
     BaberuOcr,
     #[value(name = "hayai-ocr")]
@@ -108,6 +110,7 @@ impl Arguments {
             ocr: match self.ocr {
                 OcrChoice::PaddleOcrVl1_6 => OcrModel::PaddleOcrVl1_6,
                 OcrChoice::MangaOcr => OcrModel::MangaOcr,
+                OcrChoice::MangaOcrAr => OcrModel::MangaOcrAr,
                 OcrChoice::BaberuOcr => OcrModel::BaberuOcr,
                 OcrChoice::HayaiOcr => OcrModel::HayaiOcr,
                 OcrChoice::DotsOcr => OcrModel::DotsOcr,

@@ -7,7 +7,8 @@ use async_trait::async_trait;
 use image::DynamicImage;
 use koharu_ml::{
     baberu_ocr::BaberuOcr, dots_ocr::DotsOcr, hayai_ocr::HayaiOcr, manga_ocr::MangaOcr,
-    paddle_ocr_vl::PaddleOCRVLTask, paddle_ocr_vl_quantized::PaddleOCRVLQuantized,
+    manga_ocr_ar::MangaOcrAr, paddle_ocr_vl::PaddleOCRVLTask,
+    paddle_ocr_vl_quantized::PaddleOCRVLQuantized,
 };
 use koharu_scene::{
     Authored, EntityId, Geometry, LanguageTag, OcrAnalysis, Origin, RecognizedFrom, Region,
@@ -37,6 +38,7 @@ impl StageProcessor for Processor {
     fn model(&self) -> &'static str {
         match self.config {
             OcrModel::MangaOcr => "manga-ocr",
+            OcrModel::MangaOcrAr => "manga-ocr-ar",
             OcrModel::BaberuOcr => "baberu-ocr",
             OcrModel::HayaiOcr => "hayai-ocr",
             OcrModel::DotsOcr => "dots.ocr",
@@ -67,6 +69,7 @@ impl StageProcessor for Processor {
 
 enum Model {
     Manga(Arc<Mutex<MangaOcr>>),
+    MangaAr(Arc<Mutex<MangaOcrAr>>),
     Baberu(Arc<Mutex<BaberuOcr>>),
     Hayai(Arc<Mutex<HayaiOcr>>),
     Dots(Arc<Mutex<DotsOcr>>),
@@ -78,6 +81,9 @@ impl Model {
         match config {
             OcrModel::MangaOcr => Ok(Self::Manga(Arc::new(Mutex::new(
                 MangaOcr::load(device).await?,
+            )))),
+            OcrModel::MangaOcrAr => Ok(Self::MangaAr(Arc::new(Mutex::new(
+                MangaOcrAr::load(device).await?,
             )))),
             OcrModel::BaberuOcr => Ok(Self::Baberu(Arc::new(Mutex::new(
                 BaberuOcr::load(device).await?,
@@ -97,6 +103,7 @@ impl Model {
     async fn run(&self, input: StageInput) -> Result<koharu_scene::Patch> {
         let model_name = match self {
             Self::Manga(_) => "manga-ocr",
+            Self::MangaAr(_) => "manga-ocr-ar",
             Self::Baberu(_) => "baberu-ocr",
             Self::Hayai(_) => "hayai-ocr",
             Self::Dots(_) => "dots.ocr",
@@ -148,6 +155,12 @@ impl Model {
 
         let results = match self {
             Self::Manga(model) => {
+                infer_text(model.clone(), targets, |model, image| {
+                    model.inference(image)
+                })
+                .await?
+            }
+            Self::MangaAr(model) => {
                 infer_text(model.clone(), targets, |model, image| {
                     model.inference(image)
                 })

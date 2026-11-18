@@ -182,6 +182,7 @@ function ModelOptions({
       )
     case 'paddleocr-vl-1.6':
     case 'manga-ocr':
+    case 'manga-ocr-ar':
     case 'baberu-ocr':
     case 'hayai-ocr':
     case 'dots.ocr':

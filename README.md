@@ -92,6 +92,7 @@ OCR reads source text from detected regions.
 
 - [PaddleOCR VL 1.6](https://huggingface.co/PaddlePaddle/PaddleOCR-VL-1.6)
 - [Manga OCR](https://huggingface.co/mayocream/manga-ocr)
+- [Manga OCR AR](https://huggingface.co/muscgab/manga-ocr-ar-experimental)
 - [Baberu OCR](https://huggingface.co/genshiai-daichi/baberu-ocr)
 - [Hayai OCR](https://huggingface.co/JustANormalTinkerer/hayai-ocr-v2)
 - [dots.ocr](https://huggingface.co/dots-studio/dots.ocr)

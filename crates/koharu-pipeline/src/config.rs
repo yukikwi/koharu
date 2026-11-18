@@ -72,6 +72,7 @@ impl Serialize for PipelineConfig {
         let ocr = match &self.ocr {
             OcrModel::PaddleOcrVl1_6 => "paddleocr-vl-1.6",
             OcrModel::MangaOcr => "manga-ocr",
+            OcrModel::MangaOcrAr => "manga-ocr-ar",
             OcrModel::BaberuOcr => "baberu-ocr",
             OcrModel::HayaiOcr => "hayai-ocr",
             OcrModel::DotsOcr => "dots.ocr",
@@ -142,6 +143,7 @@ impl<'de> Deserialize<'de> for PipelineConfig {
         let ocr = match file.ocr.model.as_str() {
             "paddleocr-vl-1.6" => OcrModel::PaddleOcrVl1_6,
             "manga-ocr" => OcrModel::MangaOcr,
+            "manga-ocr-ar" => OcrModel::MangaOcrAr,
             "baberu-ocr" => OcrModel::BaberuOcr,
             "hayai-ocr" => OcrModel::HayaiOcr,
             "dots.ocr" => OcrModel::DotsOcr,
@@ -266,6 +268,7 @@ impl PipelineConfig {
             self.ocr,
             OcrModel::PaddleOcrVl1_6
                 | OcrModel::MangaOcr
+                | OcrModel::MangaOcrAr
                 | OcrModel::BaberuOcr
                 | OcrModel::HayaiOcr
                 | OcrModel::DotsOcr
@@ -305,6 +308,8 @@ pub enum OcrModel {
     PaddleOcrVl1_6,
     #[serde(rename = "manga-ocr")]
     MangaOcr,
+    #[serde(rename = "manga-ocr-ar")]
+    MangaOcrAr,
     #[serde(rename = "baberu-ocr")]
     BaberuOcr,
     #[serde(rename = "hayai-ocr")]
