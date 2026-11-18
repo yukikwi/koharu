@@ -21,6 +21,8 @@ const NUM_QUERIES: i64 = 300;
 const NUM_CLASSES_WITH_BACKGROUND: i64 = 5;
 const GROUP_DETR: i64 = 13;
 const DECODER_LAYERS: usize = 6;
+/// Upper bound on attention score elements materialized per DINOv2 SDPA call.
+const ATTENTION_SCORE_BUDGET: i64 = 1 << 27;
 
 #[derive(Debug)]
 pub(super) struct Output {
@@ -396,8 +398,24 @@ impl DinoAttention {
         let query = project(&self.query);
         let key = project(&self.key);
         let value = project(&self.value);
-        let context = Tensor::scaled_dot_product_attention::<&Tensor>(
-            &query, &key, &value, None, 0.0, false, None, false,
+        // Divergence from upstream: queries are attended in chunks. Backends
+        // without fused attention fall back to the math kernel, which builds
+        // the full [batch, heads, queries, keys] score matrix; at 1920 px a
+        // full-attention layer has 25,601 tokens, about 15 GiB in FP32. Softmax
+        // rows are independent, so chunking leaves the output unchanged.
+        let query_chunk =
+            (ATTENTION_SCORE_BUDGET / (batch_size * DINO_HEADS * sequence_length)).max(1);
+        let context = Tensor::cat(
+            &query
+                .split(query_chunk, 2)
+                .iter()
+                .map(|query| {
+                    Tensor::scaled_dot_product_attention::<&Tensor>(
+                        query, &key, &value, None, 0.0, false, None, false,
+                    )
+                })
+                .collect::<Vec<_>>(),
+            2,
         )
         .permute([0, 2, 1, 3])
         .contiguous()
