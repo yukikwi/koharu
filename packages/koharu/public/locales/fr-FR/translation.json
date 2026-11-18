@@ -471,6 +471,9 @@
     },
     "title": "Paramètres",
     "translation": {
+      "contextPages": "Contexte des pages précédentes",
+      "contextPagesDescription": "Transmet le texte original et la traduction de ce nombre de pages précédentes pour garder les dialogues cohérents d’une page à l’autre. 0 désactive.",
+      "contextPagesLabel": "Pages",
       "description": "Choisissez le modèle de n’importe quel fournisseur configuré, puis appliquez un ensemble commun d’options de traduction et de génération.",
       "instructionsDescription": "Indications sur les noms, le ton, la terminologie ou la mise en forme.",
       "instructionsLabel": "Instructions de traduction",

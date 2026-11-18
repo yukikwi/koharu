@@ -149,6 +149,7 @@ fn translation_system_prompt(request: &TranslationRequest) -> String {
         prompt.push_str("\n\n");
         prompt.push_str(indoc! {"
             Context requirements:
+            The `context` entries are source and translation pairs from the preceding pages, in page order; the current page continues from them.
             Use the supplied context only to preserve terminology, character voice, and dialogue continuity.
             Do not translate or return the context entries.
         "}.trim_end());

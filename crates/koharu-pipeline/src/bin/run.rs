@@ -43,6 +43,9 @@ struct Arguments {
     #[arg(long)]
     translation_instructions: Option<String>,
 
+    #[arg(long, default_value_t = 1)]
+    translation_context_pages: u32,
+
     #[arg(long, default_value = "gemma4-12b-it")]
     llm: String,
 
@@ -126,6 +129,7 @@ impl Arguments {
                 generation: GenerationConfig::default(),
                 target_language: self.target_language,
                 instructions: self.translation_instructions.clone(),
+                context_pages: self.translation_context_pages,
             },
             inpainting: match self.inpainting {
                 InpaintingChoice::LaMa => InpaintingModel::LaMa {},

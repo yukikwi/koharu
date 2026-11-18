@@ -471,6 +471,9 @@
     },
     "title": "設定",
     "translation": {
+      "contextPages": "前のページの文脈",
+      "contextPagesDescription": "ページをまたぐ会話の一貫性を保つため、直前の指定ページ数分の原文と訳文を翻訳に渡します。0 で無効になります。",
+      "contextPagesLabel": "ページ数",
       "description": "設定済みプロバイダーのモデルを選び、共通の翻訳・生成オプションを適用します。",
       "instructionsDescription": "名前、語調、用語、書式に関する指示です。",
       "instructionsLabel": "翻訳指示",

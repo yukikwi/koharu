@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { ModelPicker } from '@/components/controls/ModelPicker'
 import { GenerationPreferences } from '@/components/preferences/GenerationPreferences'
 import {
+  NumberField,
   PreferencePage,
   PreferenceRow,
   PreferenceSection,
@@ -156,6 +157,23 @@ export function TranslationPreferences({
             placeholder={t('settings.translation.instructionsPlaceholder')}
             onChange={(event) =>
               onChange({ ...value, instructions: event.currentTarget.value || null })
+            }
+          />
+        </PreferenceRow>
+        <PreferenceRow
+          title={t('settings.translation.contextPages')}
+          description={t('settings.translation.contextPagesDescription')}
+        >
+          <NumberField
+            label={t('settings.translation.contextPagesLabel')}
+            value={value.context_pages ?? null}
+            min={0}
+            step={1}
+            onChange={(context_pages) =>
+              onChange({
+                ...value,
+                context_pages: context_pages === null ? undefined : Math.round(context_pages),
+              })
             }
           />
         </PreferenceRow>

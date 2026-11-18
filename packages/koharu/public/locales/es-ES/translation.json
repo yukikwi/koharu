@@ -471,6 +471,9 @@
     },
     "title": "Ajustes",
     "translation": {
+      "contextPages": "Contexto de páginas anteriores",
+      "contextPagesDescription": "Envía el texto original y la traducción de este número de páginas anteriores para mantener la coherencia de los diálogos entre páginas. 0 lo desactiva.",
+      "contextPagesLabel": "Páginas",
       "description": "Elige un modelo de cualquier proveedor configurado y aplica un conjunto compartido de opciones de traducción y generación.",
       "instructionsDescription": "Indicaciones sobre nombres, tono, terminología o formato.",
       "instructionsLabel": "Instrucciones de traducción",

@@ -471,6 +471,9 @@
     },
     "title": "设置",
     "translation": {
+      "contextPages": "前几页上下文",
+      "contextPagesDescription": "将前面指定页数的原文与译文提供给翻译，使跨页对话保持连贯。设为 0 即关闭。",
+      "contextPagesLabel": "页数",
       "description": "选择任意已配置提供商的模型，然后应用一组共享的翻译和生成选项。",
       "instructionsDescription": "有关名称、语气、术语或格式的说明。",
       "instructionsLabel": "翻译说明",

@@ -471,6 +471,9 @@
     },
     "title": "设置",
     "translation": {
+      "contextPages": "前头几页个上下文",
+      "contextPagesDescription": "拿前头指定页数个原文搭译文送拨翻译，让跨页个对话保持连贯。设成 0 就关脱。",
+      "contextPagesLabel": "页数",
       "description": "先选已经配置好个提供商底下个模型，再设置各个模型共用个翻译搭生成选项。",
       "instructionsDescription": "名字、语气、术语或者格式个说明。",
       "instructionsLabel": "翻译说明",

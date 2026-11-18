@@ -530,6 +530,11 @@ export type TranslationConfig = {
 	generation: GenerationConfig,
 	target_language: string,
 	instructions: string | null,
+	/**
+	 *  How many preceding pages with text feed their source and translation
+	 *  pairs to the translator as continuity context. Zero disables it.
+	 */
+	context_pages?: number,
 };
 
 export type TypesettingConfig = {

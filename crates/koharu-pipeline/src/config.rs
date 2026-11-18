@@ -190,6 +190,14 @@ pub struct TranslationConfig {
     #[specta(type = String)]
     pub target_language: Language,
     pub instructions: Option<String>,
+    /// How many preceding pages with text feed their source and translation
+    /// pairs to the translator as continuity context. Zero disables it.
+    #[serde(default = "default_context_pages")]
+    pub context_pages: u32,
+}
+
+const fn default_context_pages() -> u32 {
+    1
 }
 
 impl Default for TranslationConfig {
@@ -199,6 +207,7 @@ impl Default for TranslationConfig {
             generation: GenerationConfig::default(),
             target_language: Language::English,
             instructions: None,
+            context_pages: default_context_pages(),
         }
     }
 }
