@@ -28,7 +28,10 @@ use crate::{
 /// on it, so opening refuses any other database before reading its rows.
 const APPLICATION_ID: i32 = 0x4B48_5255;
 /// The format version this build writes.
-const VERSION: Version = Version::new(1, 0, 0);
+const VERSION: Version = Version::new(1, 1, 0);
+/// The first version with the project's glossary column. A 1.0.0 file, which
+/// a release wrote, has none, and gains it when this build first writes to it.
+const GLOSSARY: Version = Version::new(1, 1, 0);
 /// Most compressed tiles fit on a page of this size, which keeps them out of
 /// overflow chains, each of whose pages is a read of its own.
 const PAGE_SIZE: u32 = 16384;
@@ -37,7 +40,12 @@ const PAGE_SIZE: u32 = 16384;
 /// quarter of a page before spilling, which read tiles five times slower when
 /// tried, and a page's row holds its whole layer tree.
 const SCHEMA: &str = indoc! {"
-    CREATE TABLE project(id TEXT PRIMARY KEY, version TEXT NOT NULL, pages TEXT NOT NULL) STRICT;
+    CREATE TABLE project(
+      id TEXT PRIMARY KEY,
+      version TEXT NOT NULL,
+      pages TEXT NOT NULL,
+      glossary TEXT NOT NULL
+    ) STRICT;
     CREATE TABLE pages(id TEXT PRIMARY KEY, page TEXT NOT NULL) STRICT;
     CREATE TABLE tiles(
       layer TEXT NOT NULL,
@@ -149,11 +157,12 @@ impl Store {
         ))?;
         let project = Project::new(ProjectId(Uuid::now_v7()));
         conn.execute(
-            "INSERT INTO project VALUES (?1, ?2, ?3)",
+            "INSERT INTO project VALUES (?1, ?2, ?3, ?4)",
             params![
                 project.id.to_string(),
                 VERSION.to_string(),
-                json(&project.order)
+                json(&project.order),
+                json(&project.glossary)
             ],
         )?;
         Ok((
@@ -287,14 +296,19 @@ fn load(conn: &Connection) -> Result<Project> {
     // A reader opens any version up to its own with the same major version,
     // since an addition needs no decoder. The rows of any other version mean
     // something this build can't know, so they're never read.
-    let readable = Version::parse(&row.version).is_ok_and(|stored| {
-        stored.major == VERSION.major && stored <= VERSION && stored.pre.is_empty()
-    });
-    if !readable {
-        return Err(Error::Version(row.version));
-    }
+    let stored = Version::parse(&row.version)
+        .ok()
+        .filter(|stored| {
+            stored.major == VERSION.major && *stored <= VERSION && stored.pre.is_empty()
+        })
+        .ok_or_else(|| Error::Version(row.version.clone()))?;
     let mut project = Project::new(row.id);
     project.order = row.pages;
+    if stored >= GLOSSARY {
+        let glossary: String =
+            conn.query_row("SELECT glossary FROM project", [], |row| row.get(0))?;
+        project.glossary = serde_json::from_str(&glossary).map_err(Error::corrupt)?;
+    }
 
     let mut statement = conn.prepare("SELECT id, page FROM pages")?;
     for row in from_rows::<PageRow>(statement.query([])?) {
@@ -367,8 +381,23 @@ impl Tx<'_> {
         let conn = &self.0;
         // The rows written are this build's version, so the file becomes it,
         // and an older build refuses it as too new rather than as corrupt.
-        conn.prepare_cached("UPDATE project SET version = ?1 WHERE version <> ?1")?
-            .execute([VERSION.to_string()])?;
+        let stored: String = conn
+            .prepare_cached("SELECT version FROM project")?
+            .query_row([], |row| row.get(0))?;
+        if stored != VERSION.to_string() {
+            if Version::parse(&stored).map_err(Error::corrupt)? < GLOSSARY {
+                conn.execute(
+                    "ALTER TABLE project ADD COLUMN glossary TEXT NOT NULL DEFAULT '[]'",
+                    [],
+                )?;
+            }
+            conn.prepare_cached("UPDATE project SET version = ?1")?
+                .execute([VERSION.to_string()])?;
+        }
+        if before.glossary != after.glossary {
+            conn.prepare_cached("UPDATE project SET glossary = ?1")?
+                .execute([json(&after.glossary)])?;
+        }
         if before.order != after.order {
             conn.prepare_cached("UPDATE project SET pages = ?1")?
                 .execute([json(&after.order)])?;

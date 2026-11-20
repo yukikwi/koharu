@@ -33,7 +33,8 @@ fix writes.
 
 | Element | Model | Cite |
 |---|---|---|
-| project | ordered pages, imported files, and a `version` | a Clip Studio Paint EX work is one management file over its pages [CSP pages]; a Figma file keeps each image once, fetched by hash with `getImageByHash` [Figma image paint]; an OpenRaster image must carry a `version` [OpenRaster] |
+| project | ordered pages, imported files, a glossary, and a `version` | a Clip Studio Paint EX work is one management file over its pages [CSP pages]; a Figma file keeps each image once, fetched by hash with `getImageByHash` [Figma image paint]; an OpenRaster image must carry a `version` [OpenRaster] |
+| glossary | terms in order, each a source, the one target translation renders it as, and an optional note telling it apart; sources are unique | an XLIFF glossary entry holds a term, its translation, and a definition [XLIFF glossary] |
 | page | a stored id, a `size`, a `background`, its layers, and their pixels | each Clip Studio Paint page has its own canvas size [CSP page size]; a PSD document has a width and height [PSD spec]; each Photoshop artboard has its own size [Photoshop artboards]; a Figma page is a node with an `id` [Figma nodes] |
 | `background` | none, or an imported file's content hash and `visible`; drawn first, under every layer, at the page's origin. A page made from a file has that file as its background, at its size | Photoshop's Background is the bottom-most layer, an image has only one, and its stacking order, blending mode, and opacity can't change [Photoshop Background] |
 
@@ -367,7 +368,7 @@ fields of them.
 | Detection | the background | a `panel` for each panel it finds; a `balloon` for each balloon, inside the panel it's read in, though it crosses the border, or on the page when it's read in none; a `block` for each text or sound effect, inside its balloon if it has one, else free in its panel or on the page, with its `role`, its source's frame, tilt, and direction, and its mask; all in reading order |
 | OCR | the background inside each block's source frame | the source's `content` and `language` |
 | Inpainting | the background, each block's mask, and its balloon's outline when it has one | the block's clean-up, only in the tiles it changes |
-| Translation | the page's sources in reading order, for context, and in a balloon, the balloon's outline and its other texts | each given block's translation: `content` and `language`; its `frame`, its room in its balloon, or its source's frame when it's free, with `best` fit; `anchor` and `direction` |
+| Translation | the page's sources in reading order, for context, the glossary's terms they hold, and in a balloon, the balloon's outline and its other texts | each given block's translation: `content` and `language`; its `frame`, its room in its balloon, or its source's frame when it's free, with `best` fit; `anchor` and `direction` |
 
 Each model also writes its `c2pa` action on the layers it wrote.
 
@@ -432,6 +433,9 @@ Each model also writes its `c2pa` action on the layers it wrote.
   Story Editor "shows all text on each page" in text fields, leaving out what
   isn't visible [CSP Story Editor]. Editing a row edits that layer; a text is
   deleted from the Layers panel or the canvas.
+- **Glossary panel:** the project's terms, beside Story, each a source, its
+  target, and a note; editing one edits the glossary, and another project's
+  terms can be imported.
 - **Agent tools** read a page as `get_page` answers it, its layers nested in
   reading order, and edit one block at a time by its id.
 
@@ -501,7 +505,7 @@ Read in October and November 2026.
 - W3C: [SVG structure], [SVG rendering], [SVG paths], [SVG image], [SVG text
   inside shapes dropped], [CSS masking], [CSS text], [CSS align], [CSS
   line-height]
-- Document and translation formats: [PAGE-XML], [XLIFF]
+- Document and translation formats: [PAGE-XML], [XLIFF], [XLIFF glossary]
 - Lettering and manga translation: [Comics Kingdom], [Manga balloon basics],
   [Search and Destroy letters], [Manga translation II]
 - Others: [OpenRaster], [Krita layers], [Krita file], [Krita tiles], [GIMP
@@ -568,6 +572,7 @@ Read in October and November 2026.
 [CSS line-height]: https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/line-height
 [PAGE-XML]: https://www.primaresearch.org/schema/PAGE/gts/pagecontent/2019-07-15/pagecontent.xsd
 [XLIFF]: https://docs.oasis-open.org/xliff/xliff-core/v2.1/os/xliff-core-v2.1-os.html#segment
+[XLIFF glossary]: https://docs.oasis-open.org/xliff/xliff-core/v2.1/os/xliff-core-v2.1-os.html#glossary-module
 [Comics Kingdom]: https://comicskingdom.com/trending/blog/2024/07/22/do-you-speak-comics-part-2-balloons-and-bubbles
 [Manga balloon basics]: https://www.linkedin.com/pulse/manga-lettering-balloon-basics-phil-christie
 [Search and Destroy letters]: https://yattatachi.com/the-manga-letters-search-and-destroy

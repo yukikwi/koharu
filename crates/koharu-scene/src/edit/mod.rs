@@ -16,7 +16,7 @@ use specta::Type;
 
 use crate::{
     Background, Content, Created, Error, Hash, Layer, LayerId, NewLayer, PageId, Project, Rect,
-    Ref, Result, Size, Span, Text, Transform, Uuid, store::Tx,
+    Ref, Result, Size, Span, Term, Text, Transform, Uuid, store::Tx,
 };
 
 /// Where an op found a layer: its page and its path there. It holds only
@@ -145,6 +145,10 @@ pub enum Op {
     /// Add an imported file, stored once by its content hash.
     #[schemars(skip)]
     AddFile { bytes: Vec<u8> },
+    /// Replace the project's glossary: the terms translation renders one
+    /// way, each a source, its target, and a note telling it apart. Every
+    /// value is trimmed and not empty, and no two terms share a source.
+    SetGlossary { terms: Vec<Term> },
 }
 
 pub(crate) struct Run<'a, 'c> {
@@ -361,6 +365,32 @@ impl Run<'_, '_> {
                 pixels,
             } => self.write_pixels(index, layer, *rect, pixels),
             Op::AddFile { bytes } => self.add_file(bytes),
+            Op::SetGlossary { terms } => self.set_glossary(index, terms),
         }
+    }
+
+    fn set_glossary(&mut self, op: usize, terms: &[Term]) -> Result<()> {
+        let mut sources = std::collections::HashSet::new();
+        for term in terms {
+            let values = [Some(&term.source), Some(&term.target), term.note.as_ref()];
+            if values
+                .into_iter()
+                .flatten()
+                .any(|value| value.is_empty() || value.trim() != value)
+            {
+                return Err(Error::invalid(
+                    op,
+                    "a term's source, target, and note are trimmed and not empty",
+                ));
+            }
+            if !sources.insert(term.source.as_str()) {
+                return Err(Error::invalid(
+                    op,
+                    format!("the glossary holds {:?} twice", term.source),
+                ));
+            }
+        }
+        self.project.glossary = terms.iter().cloned().collect();
+        Ok(())
     }
 }

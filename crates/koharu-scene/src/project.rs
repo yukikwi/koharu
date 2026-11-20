@@ -29,6 +29,21 @@ pub struct Project {
     pub(crate) index: OrdMap<LayerId, PageId>,
     /// Each picture's tiles, under the id of the layer that owns it.
     pub(crate) tiles: OrdMap<LayerId, TileMap>,
+    /// The terms translation renders one way, in the user's order.
+    pub(crate) glossary: Vector<Term>,
+}
+
+/// A term and the one way translation renders it, with a note telling it
+/// apart, as an XLIFF glossary entry holds a term, its translation, and a
+/// definition. Each value is trimmed and not empty, and no two terms share a
+/// source.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Type, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Term {
+    pub source: String,
+    pub target: String,
+    #[serde(default)]
+    pub note: Option<String>,
 }
 
 /// A page: its size, the scan under it, and its layers with everything
@@ -172,7 +187,13 @@ impl Project {
             pages: OrdMap::new(),
             index: OrdMap::new(),
             tiles: OrdMap::new(),
+            glossary: Vector::new(),
         }
+    }
+
+    /// The glossary's terms, in order.
+    pub fn glossary(&self) -> impl Iterator<Item = &Term> {
+        self.glossary.iter()
     }
 
     #[must_use]

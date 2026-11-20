@@ -18,7 +18,7 @@ can't. The scene and the pipeline know nothing of tools.
 
 | Tool | Does | Only reads |
 |---|---|---|
-| `get_project` | the pages in order, each with its size and scan | yes |
+| `get_project` | the pages in order, each with its size and scan, and the glossary | yes |
 | `get_page` | a page's layers nested in reading order: panels, balloons, and blocks, each block with its source and translation | yes |
 | `get_layer` | one layer with everything inside it | yes |
 | `edit` | the scene's ops, applied as one undo step under a label, or not at all | no |

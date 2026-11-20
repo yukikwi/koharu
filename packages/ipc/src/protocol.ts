@@ -580,6 +580,12 @@ export type Op =
   | { op: 'write_pixels'; layer: Ref; rect: Rect; pixels: number[] }
   /**  Add an imported file, stored once by its content hash. */
   | { op: 'add_file'; bytes: number[] }
+  /**
+   *  Replace the project's glossary: the terms translation renders one
+   *  way, each a source, its target, and a note telling it apart. Every
+   *  value is trimmed and not empty, and no two terms share a source.
+   */
+  | { op: 'set_glossary'; terms: Term[] }
 
 /**  An opacity, from 0 to 1. */
 export type Opacity = number
@@ -669,6 +675,7 @@ export type ProjectAnswer = {
   /**  The format version the file holds. */
   version: string
   pages: PageSummary[]
+  glossary: Term[]
 }
 
 /**  A project, stored once when it is created. */
@@ -682,7 +689,10 @@ export type ProjectId = string
 export type Providers = { [key in string]: Endpoint }
 
 export type Query =
-  /**  List the pages in order, with their sizes and backgrounds. */
+  /**
+   *  List the pages in order, with their sizes and backgrounds, and the
+   *  glossary translation follows.
+   */
   | { query: 'get_project' }
   /**
    *  Get one page with its layers, each holding its children, masks among
@@ -837,6 +847,18 @@ export type Target =
         prompt: string | null
       }
     } & { blocks?: never; pages?: never })
+
+/**
+ *  A term and the one way translation renders it, with a note telling it
+ *  apart, as an XLIFF glossary entry holds a term, its translation, and a
+ *  definition. Each value is trimmed and not empty, and no two terms share a
+ *  source.
+ */
+export type Term = {
+  source: string
+  target: string
+  note?: string | null
+}
 
 /**
  *  Styled text in a frame. `content` is set when its layer is added; after
