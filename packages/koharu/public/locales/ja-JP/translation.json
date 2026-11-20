@@ -98,7 +98,9 @@
     "fontCount_other": "{{count}}個のフォント",
     "fonts": "フォント",
     "noResults": "この検索に一致するフォントはありません",
-    "search": "フォントを検索"
+    "pin": "{{family}} をピン留め",
+    "search": "フォントを検索",
+    "unpin": "{{family}} のピン留めを解除"
   },
   "glossary": {
     "add": "用語を追加",
@@ -432,6 +434,7 @@
     "title": "設定",
     "typesetting": {
       "addFamily": "フォントファミリーを追加",
+      "default": "デフォルト",
       "defaultFamilies": "既定のフォントファミリー",
       "description": "テキストレイヤーにファミリーが指定されていない場合に使う、順序付きフォントスタックを設定します。",
       "empty": "既定のファミリーがありません。Koharuはシステムの代替フォントを使用します。",
@@ -440,6 +443,7 @@
       "fontFallbackDescription": "Koharuは文字に対応する最初の利用可能なファミリーを使用します。",
       "loadError": "フォントを読み込めませんでした。既存のファミリーは削除できます。",
       "loadingFonts": "フォントを読み込み中…",
+      "makeDefault": "{{family}} をデフォルトにする",
       "removeFamily": "{{family}}を削除",
       "title": "レンダラー"
     }

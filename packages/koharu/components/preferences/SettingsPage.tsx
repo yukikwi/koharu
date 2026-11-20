@@ -143,7 +143,9 @@ export function SettingsPage() {
             {tab === 'typesetting' && draft && (
               <TypesettingPreferences
                 value={draft.renderer}
+                fonts={draft.fonts}
                 onChange={(renderer) => setDraft({ ...draft, renderer })}
+                onFontsChange={(fonts) => setDraft({ ...draft, fonts })}
               />
             )}
           </div>

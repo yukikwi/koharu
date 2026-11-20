@@ -16,7 +16,7 @@ import { useTranslation } from 'react-i18next'
 import { ColorWell } from '@/components/controls/ColorWell'
 import { FontPicker } from '@/components/controls/FontPicker'
 import { ContextBar } from '@/components/editor/ContextBar'
-import { call, dispatch } from '@/lib/backend'
+import { call, dispatch, savePreferences } from '@/lib/backend'
 import {
   expandLayerSelection,
   isBlockLayer,
@@ -88,6 +88,7 @@ export function TypeBar() {
   const defaultFont = useKoharuStore(
     (state) => state.preferences?.renderer.font_families?.[0] ?? FALLBACK_FONT,
   )
+  const preferences = useKoharuStore((state) => state.preferences)
   const availableFonts = useFonts().data
   const targets = useMemo(() => {
     if (!page) return []
@@ -197,6 +198,11 @@ export function TypeBar() {
           value={family}
           families={families}
           size='sm'
+          pinned={preferences?.fonts.pinned}
+          onPinnedChange={(pinned) => {
+            if (preferences)
+              void savePreferences({ ...preferences, fonts: { pinned } }).catch(() => undefined)
+          }}
           onChange={(next) => {
             const nextFamily = families.find((candidate) => sameFont(candidate.name, next))
             const nextItalic = italic && hasItalic(nextFamily)

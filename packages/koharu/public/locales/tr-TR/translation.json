@@ -98,7 +98,9 @@
     "fontCount_other": "{{count}} yazı tipi",
     "fonts": "Yazı tipleri",
     "noResults": "Bu aramayla eşleşen yazı tipi yok",
-    "search": "Yazı tipi ara"
+    "pin": "{{family}} sabitle",
+    "search": "Yazı tipi ara",
+    "unpin": "{{family}} sabitlemesini kaldır"
   },
   "glossary": {
     "add": "Terim ekle",
@@ -432,6 +434,7 @@
     "title": "Ayarlar",
     "typesetting": {
       "addFamily": "Yazı tipi ailesi ekle",
+      "default": "Varsayılan",
       "defaultFamilies": "Varsayılan yazı tipi aileleri",
       "description": "Bir metin katmanına aile atanmadığında kullanılacak sıralı yazı tipi yığınını ayarlayın.",
       "empty": "Varsayılan aile yok. Koharu sistem yedeğini kullanacak.",
@@ -440,6 +443,7 @@
       "fontFallbackDescription": "Koharu, metni destekleyen ilk kullanılabilir aileyi kullanır.",
       "loadError": "Yazı tipleri yüklenemedi. Mevcut aileler yine de kaldırılabilir.",
       "loadingFonts": "Yazı tipleri yükleniyor…",
+      "makeDefault": "{{family}} varsayılan yap",
       "removeFamily": "{{family}} ailesini kaldır",
       "title": "Oluşturucu"
     }

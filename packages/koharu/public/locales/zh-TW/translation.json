@@ -98,7 +98,9 @@
     "fontCount_other": "{{count}} 種字型",
     "fonts": "字型",
     "noResults": "沒有符合此搜尋的字型",
-    "search": "搜尋字型"
+    "pin": "釘選 {{family}}",
+    "search": "搜尋字型",
+    "unpin": "取消釘選 {{family}}"
   },
   "glossary": {
     "add": "新增術語",
@@ -432,6 +434,7 @@
     "title": "設定",
     "typesetting": {
       "addFamily": "新增字型家族",
+      "default": "預設",
       "defaultFamilies": "預設字型家族",
       "description": "設定文字圖層未指定字型家族時使用的有序字型堆疊。",
       "empty": "沒有預設字型家族。Koharu 將使用系統後備字型。",
@@ -440,6 +443,7 @@
       "fontFallbackDescription": "Koharu 使用第一個支援該文字的可用字型家族。",
       "loadError": "無法載入字型。仍可移除現有字型家族。",
       "loadingFonts": "正在載入字型…",
+      "makeDefault": "將 {{family}} 設為預設",
       "removeFamily": "移除 {{family}}",
       "title": "渲染器"
     }

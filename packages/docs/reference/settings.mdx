@@ -20,13 +20,14 @@ Add API keys, sign in to subscriptions, and set base URLs for the connections li
 
 ## Renderer
 
-Set the ordered preferred fonts, CCWildWords and then Adobe 黑体 Std unless you change them. Koharu uses them for a text with no font of its own and when a font cannot supply a glyph, then falls back to system fonts. Individual text layers still own their typography.
+Set the ordered preferred fonts, CCWildWords and then Adobe 黑体 Std unless you change them. Koharu uses them for a text with no font of its own and when a font cannot supply a glyph, then falls back to system fonts. Individual text layers still own their typography. The arrow beside a font moves it to the top, making it the default. A font pinned in any font picker is listed first in every picker.
 
 <Note>
   Settings live in `~/.koharu/config.toml`, a table per component: `[pipeline]` (including
-  `[pipeline.translator]`), `[providers]`, `[renderer]` for typesetting, and `[agent]`. The file can
-  be edited by hand for options the app has no screen for; a value of the wrong type is an error,
-  never a default. Keep credentials out of it and use **Settings → Providers** instead.
+  `[pipeline.translator]`), `[providers]`, `[renderer]` for typesetting, `[fonts]` for pinned fonts,
+  and `[agent]`. The file can be edited by hand for options the app has no screen for; a value of
+  the wrong type is an error, never a default. Keep credentials out of it and use **Settings →
+  Providers** instead.
 </Note>
 
 See [data locations](/reference/data) for project and download storage.

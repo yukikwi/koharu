@@ -98,7 +98,9 @@
     "fontCount_other": "{{count}} fontes",
     "fonts": "Fontes",
     "noResults": "Nenhuma fonte corresponde à busca",
-    "search": "Buscar fontes"
+    "pin": "Fixar {{family}}",
+    "search": "Buscar fontes",
+    "unpin": "Desafixar {{family}}"
   },
   "glossary": {
     "add": "Adicionar termo",
@@ -432,6 +434,7 @@
     "title": "Configurações",
     "typesetting": {
       "addFamily": "Adicionar família de fontes",
+      "default": "Padrão",
       "defaultFamilies": "Famílias de fontes padrão",
       "description": "Defina a pilha ordenada de fontes usada quando uma camada de texto não tem família atribuída.",
       "empty": "Nenhuma família padrão. O Koharu usará a alternativa do sistema.",
@@ -440,6 +443,7 @@
       "fontFallbackDescription": "O Koharu usa a primeira família disponível compatível com o texto.",
       "loadError": "Não foi possível carregar as fontes. As famílias existentes ainda podem ser removidas.",
       "loadingFonts": "Carregando fontes…",
+      "makeDefault": "Tornar {{family}} o padrão",
       "removeFamily": "Remover {{family}}",
       "title": "Renderizador"
     }

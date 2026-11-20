@@ -20,11 +20,11 @@ icon: 'gear'
 
 ## 渲染器
 
-按顺序设置首选字体；未修改时依次为 CCWildWords 和 Adobe 黑体 Std。文本没有指定字体，或字体无法提供某个字形时，Koharu 会使用这些字体，最后回退到系统字体。单个文本图层仍保留自己的排版。
+按顺序设置首选字体；未修改时依次为 CCWildWords 和 Adobe 黑体 Std。文本没有指定字体，或字体无法提供某个字形时，Koharu 会使用这些字体，最后回退到系统字体。单个文本图层仍保留自己的排版。字体旁的箭头会把它移到顶部，设为默认。在任一字体选择器中置顶的字体，会在所有字体选择器中排在最前。
 
 <Note>
   设置保存在 `~/.koharu/config.toml` 中，每个组件一张表：`[pipeline]`（包含
-  `[pipeline.translator]`）、`[providers]`、用于排版的 `[renderer]` 以及
+  `[pipeline.translator]`）、`[providers]`、用于排版的 `[renderer]`、用于置顶字体的 `[fonts]` 以及
   `[agent]`。界面中没有入口的选项可以直接编辑该文件；类型错误的值会报错，而不会当作默认值。凭据不要写进该文件，请使用**设置
   → 提供商**。
 </Note>

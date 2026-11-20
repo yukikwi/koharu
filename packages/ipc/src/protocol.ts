@@ -310,6 +310,15 @@ export type FontFamily = {
 }
 
 /**
+ *  `[fonts]`: how the font pickers list the fonts. The renderer never reads
+ *  it.
+ */
+export type FontsConfig = {
+  /**  Families listed first in every font picker, in the order pinned. */
+  pinned?: string[]
+}
+
+/**
  *  Where a text lays out. Externally tagged, so a merge patch switches
  *  variants by clearing the old one: `{"frame": {"path": {...}, "box": null}}`.
  */
@@ -666,6 +675,7 @@ export type PipelineEvent =
 export type Preferences = {
   pipeline: PipelineConfig
   renderer: RendererConfig
+  fonts: FontsConfig
   agent: AgentConfig
   providers: Providers
 }
