@@ -129,6 +129,11 @@ model, the target, or the instructions starts a new one.
   name from CLDR [CLDR]. It keeps the JSON the answer is parsed by, which a
   user's edit could otherwise drop. The user's instructions, in any language
   and form, follow it as written.
+- **The glossary's terms** a page holds, matched ignoring case, follow its
+  texts in Index-Translate's constraint form [Index-Translate prompts]: the
+  terms as a hard mapping, their notes as a soft one. A page's own terms go
+  with that page, not in the system prompt, so a long glossary doesn't crowd
+  every turn and a local model still reuses the history before it.
 - **A full conversation** is recycled: a general model summarizes older pages,
   and a translation model, which can't, drops them.
 
@@ -186,7 +191,7 @@ crate's license is `MIT OR Apache-2.0 AND BSD-3-Clause`.
 Read in November 2026.
 
 - Adobe: [Photoshop Content-Aware Fill], [Photoshop Generative Fill]
-- [ComfyUI routes], [Ollama keep_alive], [OpenCV inpaint], [CLDR], [Index-Translate], [JLREQ]
+- [ComfyUI routes], [Ollama keep_alive], [OpenCV inpaint], [CLDR], [Index-Translate], [Index-Translate prompts], [JLREQ]
 - Lettering: [Manga balloon basics]
 
 [Photoshop Content-Aware Fill]: https://helpx.adobe.com/photoshop/desktop/repair-retouch/remove-objects-fill-space/adjust-content-aware-fill-settings.html
@@ -196,5 +201,6 @@ Read in November 2026.
 [OpenCV inpaint]: https://github.com/opencv/opencv/blob/fe38fc608f6acb8b68953438a62305d8318f4fcd/modules/photo/src/inpaint.cpp
 [CLDR]: https://cldr.unicode.org/
 [Index-Translate]: https://huggingface.co/IndexTeam/Index-Translate-9B
+[Index-Translate prompts]: https://github.com/bilibili/Index-Translate/blob/93ac63774d1c6939aec05e6f0f191bf90f225365/docs/prompts.md
 [Manga balloon basics]: https://www.linkedin.com/pulse/manga-lettering-balloon-basics-phil-christie
 [JLREQ]: https://www.w3.org/TR/jlreq/

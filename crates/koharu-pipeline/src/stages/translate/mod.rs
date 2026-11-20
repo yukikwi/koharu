@@ -5,7 +5,8 @@
 //! enters the history, and an answer echoing the page before's is asked again
 //! without the history it copied. A text given back unchanged, such as a
 //! copyright line or a "!?", is in the target's script already, so it keeps
-//! its own lettering.
+//! its own lettering. The project's glossary terms a page holds follow its
+//! texts as constraints.
 
 mod conversation;
 mod model;
@@ -22,7 +23,7 @@ use icu_locale::LocaleExpander;
 use icu_locale_core::{LanguageIdentifier, Locale, langid, subtags::language};
 use indoc::formatdoc;
 use koharu_llm::rig::{completion::Reasoning, driver::DynModel};
-use koharu_scene::{Content, LayerId, Op, Project};
+use koharu_scene::{Content, LayerId, Op, Project, Term};
 use rayon::prelude::*;
 use serde::{Deserialize, Deserializer, Serialize, de::Error as _};
 use serde_json::json;
@@ -110,6 +111,8 @@ struct Page {
     /// Each block and its source's language.
     blocks: Vec<(LayerId, LanguageIdentifier)>,
     texts: Vec<String>,
+    /// The glossary's terms the texts hold, as constraints.
+    constraints: Option<String>,
     image: Option<String>,
 }
 
@@ -152,6 +155,7 @@ pub(crate) async fn translate(
     let turn = Turn::new(
         system,
         &page.texts,
+        page.constraints.as_deref(),
         page.image.as_deref(),
         translator.reasoning,
         &member.cancel,
@@ -195,11 +199,50 @@ fn page(member: &Member, vision: bool) -> Result<Option<Page>> {
         })
         .filter(|(_, text)| !text.trim().is_empty())
         .unzip();
+    let constraints = constraints(project.glossary(), &texts);
     Ok((!texts.is_empty()).then_some(Page {
         blocks,
         texts,
+        constraints,
         image,
     }))
+}
+
+/// The `glossary` terms found in `texts`, ignoring case, as Index-Translate's
+/// instTrans template writes constraints after the source
+/// (bilibili/Index-Translate `docs/prompts.md`,
+/// 93ac63774d1c6939aec05e6f0f191bf90f225365): a hard terminology mapping,
+/// then the notes as a soft disambiguation. Only a page's own terms go, so a
+/// long glossary doesn't crowd every turn, and they go with the page rather
+/// than in the system prompt, which a local model's reused history follows.
+fn constraints<'t>(glossary: impl Iterator<Item = &'t Term>, texts: &[String]) -> Option<String> {
+    let text = texts.join("\n").to_lowercase();
+    let terms: Vec<&Term> = glossary
+        .filter(|term| text.contains(&term.source.to_lowercase()))
+        .collect();
+    if terms.is_empty() {
+        return None;
+    }
+    let mapping = terms
+        .iter()
+        .map(|term| format!("{} -> {}", term.source, term.target))
+        .collect::<Vec<_>>()
+        .join("; ");
+    let mut constraints = vec![format!("[Hard Constraint] Terminology mapping: {mapping}")];
+    let notes = terms
+        .iter()
+        .filter_map(|term| Some(format!("{}: {}", term.source, term.note.as_ref()?)))
+        .collect::<Vec<_>>();
+    if !notes.is_empty() {
+        constraints.push(format!("[Note] Disambiguation -- {}", notes.join("; ")));
+    }
+    let numbered = constraints
+        .iter()
+        .enumerate()
+        .map(|(at, constraint)| format!("{}. {constraint}", at + 1))
+        .collect::<Vec<_>>()
+        .join("\n");
+    Some(format!("[Constraints]\n{numbered}"))
 }
 
 /// The longest side of the page a model sees, in pixels: about 1,120 image
@@ -309,6 +352,29 @@ mod tests {
     fn a_language_cldr_doesnt_name_fails() {
         let language = LanguageIdentifier::try_from_str("xx").expect("a tag");
         assert!(name(&language).is_err());
+    }
+
+    #[test]
+    fn only_the_terms_a_page_holds_go_with_it() {
+        let term = |source: &str, target: &str, note: Option<&str>| Term {
+            source: source.to_owned(),
+            target: target.to_owned(),
+            note: note.map(str::to_owned),
+        };
+        let glossary = [
+            term("ピンク", "Pink", Some("a name")),
+            term("アイギス", "Aegis", None),
+            term("schale", "Schale", None),
+        ];
+        let texts = ["ピンク確保してっ！".to_owned(), "SCHALE".to_owned()];
+        assert_eq!(
+            constraints(glossary.iter(), &texts).expect("two terms"),
+            indoc! {"
+                [Constraints]
+                1. [Hard Constraint] Terminology mapping: ピンク -> Pink; schale -> Schale
+                2. [Note] Disambiguation -- ピンク: a name"}
+        );
+        assert_eq!(constraints(glossary.iter(), &["hello".to_owned()]), None);
     }
 
     #[test]

@@ -28,17 +28,23 @@ pub(super) struct Turn<'a> {
 }
 
 impl<'a> Turn<'a> {
+    /// `constraints` follow the page's texts in its message.
     pub(super) fn new(
         system: String,
         texts: &'a [String],
+        constraints: Option<&str>,
         image: Option<&'a str>,
         reasoning: Option<Reasoning>,
         cancel: &'a CancellationToken,
     ) -> Self {
         let keys = keys(texts.len());
+        let mut page = numbered(&keys, texts.iter().map(String::as_str));
+        if let Some(constraints) = constraints {
+            page = format!("{page}\n\n{constraints}");
+        }
         Self {
             system,
-            page: numbered(&keys, texts.iter().map(String::as_str)),
+            page,
             keys,
             texts,
             image,
