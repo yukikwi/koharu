@@ -140,6 +140,18 @@ async fn main() -> Result<()> {
             Event::Finished { page, stage, .. } => {
                 println!("{elapsed:7.1}s page {} {stage} finished", number(page))
             }
+            Event::Retrying {
+                page,
+                stage,
+                attempt,
+                attempts,
+                ..
+            } => {
+                println!(
+                    "{elapsed:7.1}s page {} {stage} retrying, attempt {attempt} of {attempts}",
+                    number(page)
+                )
+            }
             Event::Ended {
                 run: ended,
                 outcome,

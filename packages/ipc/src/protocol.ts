@@ -670,6 +670,11 @@ export type PipelineEvent =
   | { kind: 'queued'; run: RunId; steps: number }
   | { kind: 'started'; run: RunId; page: PageId; stage: Stage }
   | { kind: 'finished'; run: RunId; page: PageId; stage: Stage }
+  /**
+   *  A started stage asks its model again, its answer having been
+   *  unusable: `attempt` of `attempts`, the first ask being 1.
+   */
+  | { kind: 'retrying'; run: RunId; page: PageId; stage: Stage; attempt: number; attempts: number }
   | { kind: 'ended'; run: RunId; outcome: Outcome }
 
 export type Preferences = {

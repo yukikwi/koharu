@@ -53,6 +53,15 @@ pub enum Event {
         page: PageId,
         stage: Stage,
     },
+    /// A started stage asks its model again, its answer having been
+    /// unusable: `attempt` of `attempts`, the first ask being 1.
+    Retrying {
+        run: RunId,
+        page: PageId,
+        stage: Stage,
+        attempt: u32,
+        attempts: u32,
+    },
     Ended {
         run: RunId,
         outcome: Outcome,
@@ -107,6 +116,7 @@ impl Events {
         let (Event::Queued { run, .. }
         | Event::Started { run, .. }
         | Event::Finished { run, .. }
+        | Event::Retrying { run, .. }
         | Event::Ended { run, .. }) = &event;
         {
             let mut runs = self.runs.lock();
@@ -137,6 +147,7 @@ impl Events {
                 Event::Finished { page, stage, .. } => {
                     record.stages.remove(&(*page, *stage));
                 }
+                Event::Retrying { .. } => {}
                 Event::Ended { outcome, .. } => {
                     record.ended.send_replace(true);
                     // A failed or stopped run leaves stages it never finished.

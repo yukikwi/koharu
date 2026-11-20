@@ -11,9 +11,11 @@
     "downloadingFiles": "来勒下载 {{count}} 个文件",
     "downloadingFiles_one": "来勒下载 {{count}} 个文件",
     "downloadingFiles_other": "来勒下载 {{count}} 个文件",
+    "invalidOutput": "翻译返回个格式勿对",
     "modelDownload": "模型下载",
     "processing": "来勒处理",
     "processingFailed": "处理失败哉。",
+    "retrying": "重新试翻译（第 {{attempt}} 趟，共 {{attempts}} 趟）",
     "stop": "停止",
     "title": "活动"
   },

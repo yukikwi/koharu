@@ -195,6 +195,8 @@ function fold(job: Job | undefined, event: PipelineEvent): Job {
       return { ...current, stage: event.stage, page: event.page }
     case 'finished':
       return { ...current, completed: current.completed + 1 }
+    case 'retrying':
+      return current
     case 'ended':
       // A failure names its own page and stage: the last started may be another page in flight.
       return event.outcome.kind === 'failed'

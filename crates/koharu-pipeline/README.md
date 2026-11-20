@@ -111,7 +111,9 @@ model, the target, or the instructions starts a new one.
 
 - **A page** is its texts as a JSON object keyed by reading order, and the
   answer must keep the keys. A broken answer, a missing key, or a blank
-  translation fails the page, which never enters the history.
+  translation is asked again with the same history, three asks in all, each
+  retry told to the app; the third fails the page, which never enters the
+  history. A failed request isn't asked again.
 - **An answer copying the page before's** for different texts is asked again
   without the history it copied.
 - **A text given back unchanged**, such as a copyright line, keeps its own

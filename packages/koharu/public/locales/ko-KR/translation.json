@@ -11,9 +11,11 @@
     "downloadingFiles": "{{count}}개 파일 다운로드 중",
     "downloadingFiles_one": "{{count}}개 파일 다운로드 중",
     "downloadingFiles_other": "{{count}}개 파일 다운로드 중",
+    "invalidOutput": "번역 결과 형식이 올바르지 않습니다",
     "modelDownload": "모델 다운로드",
     "processing": "처리 중",
     "processingFailed": "처리에 실패했습니다.",
+    "retrying": "번역 재시도 중 ({{attempts}}회 중 {{attempt}}회째)",
     "stop": "중지",
     "title": "활동"
   },

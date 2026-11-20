@@ -1,7 +1,8 @@
 //! Translation: one conversation per open project, kept in memory, a turn per
 //! page in page order. Changing the model, the target, or the prompt starts a
 //! new one. A page is its texts as a JSON object numbered in reading order, and
-//! its answer must keep the keys, held to a schema; a page that fails never
+//! its answer must keep the keys, held to a schema, an unusable answer being
+//! asked again up to three asks in all; a page that fails never
 //! enters the history, and an answer echoing the page before's is asked again
 //! without the history it copied. A text given back unchanged, such as a
 //! copyright line or a "!?", is in the target's script already, so it keeps
@@ -34,7 +35,7 @@ pub(crate) use self::conversation::{Conversation, Conversations};
 pub use self::placement::placement;
 use self::turn::Turn;
 use super::{Member, Stopped, Task, action, key};
-use crate::{PipelineConfig, Stage};
+use crate::{Event, PipelineConfig, Stage};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -160,8 +161,17 @@ pub(crate) async fn translate(
         translator.reasoning,
         &member.cancel,
     );
+    let retried = |attempt| {
+        task.events.send(Event::Retrying {
+            run: member.run,
+            page: member.page,
+            stage: Stage::Translate,
+            attempt,
+            attempts: turn::ATTEMPTS,
+        });
+    };
     let Some(translations) = turn
-        .take(conversation, &model)
+        .take(conversation, &model, retried)
         .instrument(info_span!("llm", texts = page.texts.len()))
         .await?
     else {

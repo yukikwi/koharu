@@ -16,6 +16,16 @@ use tokio_util::sync::CancellationToken;
 
 use super::Conversation;
 
+/// How many times a page is asked before its unusable answers fail it.
+pub(super) const ATTEMPTS: u32 = 3;
+
+/// An answer that doesn't hold the page's translations as its schema says,
+/// such as broken JSON or a key left out: asking again can mend it, where a
+/// failed request is the vendor's to report.
+#[derive(Debug, thiserror::Error)]
+#[error("{0:#}")]
+struct Unusable(anyhow::Error);
+
 pub(super) struct Turn<'a> {
     system: String,
     page: String,
@@ -54,11 +64,13 @@ impl<'a> Turn<'a> {
     }
 
     /// The page's translations, recorded in `conversation` once they pass;
-    /// `None` when the run stopped first.
+    /// `None` when the run stopped first. An unusable answer is asked again,
+    /// up to `ATTEMPTS` asks in all, and `retried` told each new attempt.
     pub(super) async fn take(
         self,
         conversation: &mut Conversation,
         model: &DynModel<Completion>,
+        retried: impl Fn(u32),
     ) -> Result<Option<Vec<String>>> {
         conversation.context.fit(model).await?;
         let history: Vec<Message> = conversation
@@ -67,7 +79,7 @@ impl<'a> Turn<'a> {
             .iter()
             .map(|message| Message::clone(message))
             .collect();
-        let Some(mut asked) = self.ask(model, history).await? else {
+        let Some(mut asked) = self.ask_usable(model, history, &retried).await? else {
             return Ok(None);
         };
         // A small model can answer a page with its answer to the page
@@ -75,7 +87,7 @@ impl<'a> Turn<'a> {
         // Blue Archive pages; without that answer to copy, it reads the page.
         if self.echoes(&asked.0, conversation.last.as_ref()) {
             tracing::info!("the answer echoed the page before's; asking again without the history");
-            let Some(again) = self.ask(model, Vec::new()).await? else {
+            let Some(again) = self.ask_usable(model, Vec::new(), &retried).await? else {
                 return Ok(None);
             };
             asked = again;
@@ -84,6 +96,27 @@ impl<'a> Turn<'a> {
         conversation.context.record([(remembered(messages), usage)]);
         conversation.last = Some((self.texts.to_vec(), translations.clone()));
         Ok(Some(translations))
+    }
+
+    /// `ask` until an answer is usable, at most `ATTEMPTS` times, each with
+    /// the same history; the last unusable answer fails the page.
+    async fn ask_usable(
+        &self,
+        model: &DynModel<Completion>,
+        history: Vec<Message>,
+        retried: &impl Fn(u32),
+    ) -> Result<Option<(Vec<String>, Vec<Message>, Usage)>> {
+        let mut attempt = 1;
+        loop {
+            match self.ask(model, history.clone()).await {
+                Err(error) if attempt < ATTEMPTS && error.is::<Unusable>() => {
+                    attempt += 1;
+                    tracing::warn!("{error:#}; asking again, attempt {attempt} of {ATTEMPTS}");
+                    retried(attempt);
+                }
+                asked => return asked,
+            }
+        }
     }
 
     /// The page asked after `history`: its translations, the turn's
@@ -121,7 +154,7 @@ impl<'a> Turn<'a> {
             response = request.into_future() => response?,
             () = self.cancel.cancelled() => return Ok(None),
         };
-        let translations = answers(&response.output(), &self.keys)?;
+        let translations = answers(&response.output(), &self.keys).map_err(Unusable)?;
         let usage = response
             .completion_calls
             .last()

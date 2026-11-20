@@ -11,9 +11,11 @@
     "downloadingFiles": "Baixando {{count}} arquivos",
     "downloadingFiles_one": "Baixando {{count}} arquivos",
     "downloadingFiles_other": "Baixando {{count}} arquivos",
+    "invalidOutput": "A tradução retornou uma saída inválida",
     "modelDownload": "Download do modelo",
     "processing": "Processando",
     "processingFailed": "Falha no processamento.",
+    "retrying": "Tentando traduzir novamente (tentativa {{attempt}} de {{attempts}})",
     "stop": "Parar",
     "title": "Atividade"
   },

@@ -11,9 +11,11 @@
     "downloadingFiles": "Скачивание файлов: {{count}}",
     "downloadingFiles_one": "Скачивание файлов: {{count}}",
     "downloadingFiles_other": "Скачивание файлов: {{count}}",
+    "invalidOutput": "Перевод вернул некорректный результат",
     "modelDownload": "Скачивание модели",
     "processing": "Обработка",
     "processingFailed": "Ошибка обработки.",
+    "retrying": "Повтор перевода (попытка {{attempt}} из {{attempts}})",
     "stop": "Остановить",
     "title": "Активность"
   },

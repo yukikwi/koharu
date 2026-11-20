@@ -11,9 +11,11 @@
     "downloadingFiles": "{{count}} dosya indiriliyor",
     "downloadingFiles_one": "{{count}} dosya indiriliyor",
     "downloadingFiles_other": "{{count}} dosya indiriliyor",
+    "invalidOutput": "Çeviri geçersiz çıktı döndürdü",
     "modelDownload": "Model indirme",
     "processing": "İşleniyor",
     "processingFailed": "İşleme başarısız oldu.",
+    "retrying": "Çeviri yeniden deneniyor ({{attempts}} denemeden {{attempt}}.)",
     "stop": "Durdur",
     "title": "Etkinlik"
   },

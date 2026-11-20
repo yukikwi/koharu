@@ -69,7 +69,20 @@ export function Providers({ children }: { children: ReactNode }) {
         listen(events.notice, (notice) =>
           toast.add({ type: 'info', title: i18n.t(`canvas.notice.${notice}`) }),
         ),
-        listen(events.pipeline, receivePipeline),
+        listen(events.pipeline, (event) => {
+          receivePipeline(event)
+          // Told as it happens; a run's history read later leaves its retries out.
+          if (event.kind === 'retrying') {
+            toast.add({
+              type: 'warning',
+              title: i18n.t('activity.invalidOutput'),
+              description: i18n.t('activity.retrying', {
+                attempt: event.attempt,
+                attempts: event.attempts,
+              }),
+            })
+          }
+        }),
         listen(events.download, receiveDownload),
       ])
         .then(() => commands.getPipelineEvents())
