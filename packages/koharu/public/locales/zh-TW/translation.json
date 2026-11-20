@@ -100,6 +100,22 @@
     "noResults": "沒有符合此搜尋的字型",
     "search": "搜尋字型"
   },
+  "glossary": {
+    "add": "新增術語",
+    "description": "翻譯時必須嚴格依此處寫法翻譯的人名、地名和特殊用語。每頁只會傳送該頁中出現的術語。",
+    "duplicate": "同一原文術語只能出現一次。",
+    "import": "從專案匯入",
+    "incomplete": "每個術語都需要原文和譯文。",
+    "noProjects": "沒有其他專案",
+    "note": "備註",
+    "notePlaceholder": "例如：人名，女性",
+    "remove": "刪除術語",
+    "source": "原文",
+    "sourcePlaceholder": "原始術語",
+    "target": "譯文",
+    "targetPlaceholder": "指定譯文",
+    "title": "術語表"
+  },
   "history": {
     "close": "關閉步驟記錄",
     "opened": "開啟時",
@@ -119,6 +135,7 @@
       "recognize": "OCR",
       "resize": "調整大小",
       "rotate": "旋轉",
+      "set_glossary": "編輯術語表",
       "set_locked": "鎖定或解鎖",
       "set_source_text": "編輯原文",
       "set_style": "變更文字樣式",

@@ -977,6 +977,9 @@ export type Vendor = {
 
 export const commands = {
   listProjects: () => invoke<string[]>('list_projects', {}, { headers: headers() }),
+  /** Another project's glossary, for the Glossary panel to import: the project opens for the read and closes again. The open project's own is the scene's to answer. */
+  getProjectGlossary: (name: string) =>
+    invoke<Term[]>('get_project_glossary', { name }, { headers: headers() }),
   /** Creates a project and opens it. */
   create: (name: string) => invoke<null>('create', { name }, { headers: headers() }),
   open: (name: string) => invoke<null>('open', { name }, { headers: headers() }),

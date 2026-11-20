@@ -100,6 +100,22 @@
     "noResults": "Ninguna fuente coincide con esta búsqueda",
     "search": "Buscar fuentes"
   },
+  "glossary": {
+    "add": "Añadir término",
+    "description": "Nombres, lugares y términos especiales que el traductor debe escribir exactamente como aparecen aquí. Cada página solo envía los términos que contiene.",
+    "duplicate": "Cada término de origen solo puede aparecer una vez.",
+    "import": "Importar de un proyecto",
+    "incomplete": "Cada término necesita un origen y una traducción.",
+    "noProjects": "No hay otros proyectos",
+    "note": "Nota",
+    "notePlaceholder": "p. ej., nombre, mujer",
+    "remove": "Eliminar término",
+    "source": "Origen",
+    "sourcePlaceholder": "Término original",
+    "target": "Traducción",
+    "targetPlaceholder": "Traducción exacta",
+    "title": "Glosario"
+  },
   "history": {
     "close": "Cerrar historia",
     "opened": "Al abrir",
@@ -119,6 +135,7 @@
       "recognize": "OCR",
       "resize": "Cambiar tamaño",
       "rotate": "Rotar",
+      "set_glossary": "Editar glosario",
       "set_locked": "Bloquear o desbloquear",
       "set_source_text": "Editar texto original",
       "set_style": "Cambiar estilo de texto",

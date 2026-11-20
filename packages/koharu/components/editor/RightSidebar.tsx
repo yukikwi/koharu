@@ -1,16 +1,17 @@
 'use client'
 
-import { BookOpenText, Bot, Layers3 } from 'lucide-react'
+import { BookA, BookOpenText, Bot, Layers3 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { AgentPanel } from '@/components/editor/AgentPanel'
+import { GlossaryPanel } from '@/components/editor/GlossaryPanel'
 import { LayersPanel } from '@/components/editor/LayersPanel'
 import { StoryPanel } from '@/components/editor/StoryPanel'
 import { useProject } from '@/lib/queries'
 import { useKoharuStore, type Panel } from '@/lib/store'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@koharu/ui/components/tabs'
 
-/** The right pane: Layers, Story, and Agent as tabs, each its full height, as Photoshop groups its
+/** The right pane: Layers, Story, Glossary, and Agent as tabs, each its full height, as Photoshop groups its
  * panels. The agent's tab stays mounted, so its conversation outlives a switch, and starts over
  * with another project, as the desktop's conversation does. */
 export function RightSidebar() {
@@ -38,6 +39,9 @@ export function RightSidebar() {
           <TabsTrigger value='story' className={tab}>
             <BookOpenText /> {t('story.title')}
           </TabsTrigger>
+          <TabsTrigger value='glossary' className={tab}>
+            <BookA /> {t('glossary.title')}
+          </TabsTrigger>
           <TabsTrigger value='agent' className={tab}>
             <Bot /> {t('agent.title')}
           </TabsTrigger>
@@ -47,6 +51,9 @@ export function RightSidebar() {
         </TabsContent>
         <TabsContent value='story' className='flex min-h-0 flex-col'>
           <StoryPanel />
+        </TabsContent>
+        <TabsContent value='glossary' className='flex min-h-0 flex-col'>
+          <GlossaryPanel key={project} />
         </TabsContent>
         <TabsContent value='agent' keepMounted className='flex min-h-0 flex-col'>
           <AgentPanel key={project} />

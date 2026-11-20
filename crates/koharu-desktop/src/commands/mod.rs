@@ -56,6 +56,7 @@ impl IpcResponse for Bytes {
 pub fn handler() -> impl Fn(Invoke<CefRuntime>) -> bool + Send + Sync + 'static {
     let commands: fn(Invoke<CefRuntime>) -> bool = tauri::generate_handler![
         project::list_projects,
+        project::get_project_glossary,
         project::create,
         project::open,
         project::delete_project,
@@ -127,6 +128,7 @@ pub fn handler() -> impl Fn(Invoke<CefRuntime>) -> bool + Send + Sync + 'static 
 pub fn bindings(types: &mut Types) -> Vec<Function> {
     specta::function::collect_functions![
         project::list_projects,
+        project::get_project_glossary,
         project::create,
         project::open,
         project::delete_project,

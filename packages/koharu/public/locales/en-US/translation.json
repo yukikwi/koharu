@@ -100,6 +100,22 @@
     "noResults": "No fonts match this search",
     "search": "Search fonts"
   },
+  "glossary": {
+    "add": "Add term",
+    "description": "Names, places, and special terms the translator must render exactly as written here. Only terms found on a page are sent with it.",
+    "duplicate": "Each source term can appear only once.",
+    "import": "Import from Project",
+    "incomplete": "Every term needs both a source and a translation.",
+    "noProjects": "No other projects",
+    "note": "Note",
+    "notePlaceholder": "e.g. name, female",
+    "remove": "Remove term",
+    "source": "Source",
+    "sourcePlaceholder": "Original term",
+    "target": "Translation",
+    "targetPlaceholder": "Exact translation",
+    "title": "Glossary"
+  },
   "history": {
     "close": "Close history",
     "opened": "Opened",
@@ -119,6 +135,7 @@
       "recognize": "OCR",
       "resize": "Resize",
       "rotate": "Rotate",
+      "set_glossary": "Edit glossary",
       "set_locked": "Lock or unlock",
       "set_source_text": "Edit source text",
       "set_style": "Change type",

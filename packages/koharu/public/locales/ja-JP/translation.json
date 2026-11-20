@@ -100,6 +100,22 @@
     "noResults": "この検索に一致するフォントはありません",
     "search": "フォントを検索"
   },
+  "glossary": {
+    "add": "用語を追加",
+    "description": "翻訳時にここで指定したとおりに訳す人名・地名・固有の用語です。各ページには、そのページに出てくる用語だけが送られます。",
+    "duplicate": "同じ原語は一度しか登録できません。",
+    "import": "プロジェクトから読み込む",
+    "incomplete": "すべての用語に原語と訳語が必要です。",
+    "noProjects": "ほかのプロジェクトはありません",
+    "note": "メモ",
+    "notePlaceholder": "例：人名、女性",
+    "remove": "用語を削除",
+    "source": "原語",
+    "sourcePlaceholder": "元の用語",
+    "target": "訳語",
+    "targetPlaceholder": "指定する訳語",
+    "title": "用語集"
+  },
   "history": {
     "close": "ヒストリーを閉じる",
     "opened": "開いた状態",
@@ -119,6 +135,7 @@
       "recognize": "OCR",
       "resize": "サイズ変更",
       "rotate": "回転",
+      "set_glossary": "用語集を編集",
       "set_locked": "ロック/ロック解除",
       "set_source_text": "原文を編集",
       "set_style": "書式を変更",

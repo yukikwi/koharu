@@ -100,6 +100,22 @@
     "noResults": "Aucune police ne correspond à cette recherche",
     "search": "Rechercher des polices"
   },
+  "glossary": {
+    "add": "Ajouter un terme",
+    "description": "Noms, lieux et termes spéciaux que le traducteur doit rendre exactement comme indiqué ici. Chaque page n’envoie que les termes qu’elle contient.",
+    "duplicate": "Chaque terme source ne peut apparaître qu’une fois.",
+    "import": "Importer depuis un projet",
+    "incomplete": "Chaque terme doit avoir une source et une traduction.",
+    "noProjects": "Aucun autre projet",
+    "note": "Note",
+    "notePlaceholder": "ex. : nom, féminin",
+    "remove": "Supprimer le terme",
+    "source": "Source",
+    "sourcePlaceholder": "Terme original",
+    "target": "Traduction",
+    "targetPlaceholder": "Traduction exacte",
+    "title": "Glossaire"
+  },
   "history": {
     "close": "Fermer l’historique",
     "opened": "À l’ouverture",
@@ -119,6 +135,7 @@
       "recognize": "OCR",
       "resize": "Redimensionner",
       "rotate": "Faire pivoter",
+      "set_glossary": "Modifier le glossaire",
       "set_locked": "Verrouiller ou déverrouiller",
       "set_source_text": "Modifier le texte source",
       "set_style": "Modifier le style du texte",

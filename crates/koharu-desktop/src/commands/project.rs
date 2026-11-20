@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use koharu_scene::Term;
 use tauri::State;
 
 use super::Result;
@@ -11,6 +12,20 @@ use crate::app::App;
 #[specta::specta]
 pub fn list_projects(app: State<'_, Arc<App>>) -> Result<Vec<String>> {
     Ok(app.library.list()?)
+}
+
+/// Another project's glossary, for the Glossary panel to import: the project
+/// opens for the read and closes again. The open project's own is the scene's
+/// to answer.
+#[tauri::command]
+#[specta::specta]
+pub async fn get_project_glossary(app: State<'_, Arc<App>>, name: String) -> Result<Vec<Term>> {
+    let app = Arc::clone(&app);
+    Ok(tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
+        let session = app.library.open(&name)?;
+        Ok(session.project().glossary().cloned().collect())
+    })
+    .await??)
 }
 
 /// Creates a project and opens it.

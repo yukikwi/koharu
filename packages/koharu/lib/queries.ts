@@ -18,6 +18,7 @@ import {
   type PageId,
   type PageSummary,
   type ProjectAnswer,
+  type Term,
 } from '@koharu/ipc/protocol'
 
 import { call } from './backend'
@@ -29,12 +30,13 @@ export const pagesKey = ['pages'] as const
 export const projectsKey = ['projects'] as const
 export const fontsKey = ['fonts'] as const
 
-/** The open project as the editor lists it: its name, the page the canvas shows, its pages, and
- * its history, read through the scene's own queries. */
+/** The open project as the editor lists it: its name, the page the canvas shows, its pages, its
+ * glossary, and its history, read through the scene's own queries. */
 export interface ProjectView {
   name: string
   page: PageId | null
   pages: PageSummary[]
+  glossary: Term[]
   history: History
   /** Each page's revision when a change last came while it was shown, which its thumbnail
    * follows; a page keeps its own after another is shown, or after it's removed. */
@@ -56,6 +58,7 @@ const projectQuery = queryOptions({
       name,
       page,
       pages: (project as ProjectAnswer).pages,
+      glossary: (project as ProjectAnswer).glossary,
       history: history as History,
       revisions: known?.name === name ? known.revisions : {},
     }

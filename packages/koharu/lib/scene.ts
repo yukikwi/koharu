@@ -8,6 +8,7 @@ import {
   type LayerId,
   type Op,
   type PageId,
+  type Term,
   type TextStyle,
   type Value,
 } from '@koharu/ipc/protocol'
@@ -131,4 +132,9 @@ export function deletePages(pages: PageId[]): Promise<Change> {
 /** Moves a page to `index`, counted after it's taken out. */
 export function movePage(page: PageId, index: number): Promise<Change> {
   return edit('move_page', [{ op: 'move_page', page, index }])
+}
+
+/** Replaces the project's glossary, whose terms translation renders one way. */
+export function setGlossary(terms: Term[]): Promise<Change> {
+  return edit('set_glossary', [{ op: 'set_glossary', terms }])
 }

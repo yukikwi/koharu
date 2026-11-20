@@ -100,6 +100,22 @@
     "noResults": "寻弗着符合条件个字体",
     "search": "搜寻字体"
   },
+  "glossary": {
+    "add": "添加术语",
+    "description": "翻译辰光必须照此地写法翻个人名、地名搭特殊用语。每页只会送出该页里向出现个术语。",
+    "duplicate": "同一个原文术语只好出现一趟。",
+    "import": "从项目导入",
+    "incomplete": "每条术语侪要有原文搭译文。",
+    "noProjects": "呒没别个项目",
+    "note": "备注",
+    "notePlaceholder": "比方：人名，女",
+    "remove": "删除术语",
+    "source": "原文",
+    "sourcePlaceholder": "原始术语",
+    "target": "译文",
+    "targetPlaceholder": "指定译文",
+    "title": "术语表"
+  },
   "history": {
     "close": "关脱历史记录",
     "opened": "打开辰光",
@@ -119,6 +135,7 @@
       "recognize": "OCR",
       "resize": "改大小",
       "rotate": "旋转",
+      "set_glossary": "编辑术语表",
       "set_locked": "锁牢或者解锁",
       "set_source_text": "编辑原文",
       "set_style": "改文字样式",

@@ -100,6 +100,22 @@
     "noResults": "Bu aramayla eşleşen yazı tipi yok",
     "search": "Yazı tipi ara"
   },
+  "glossary": {
+    "add": "Terim ekle",
+    "description": "Çevirmenin tam olarak burada yazıldığı gibi aktarması gereken adlar, yerler ve özel terimler. Her sayfayla yalnızca o sayfada geçen terimler gönderilir.",
+    "duplicate": "Her kaynak terim yalnızca bir kez yer alabilir.",
+    "import": "Projeden içe aktar",
+    "incomplete": "Her terimin bir kaynağı ve bir çevirisi olmalıdır.",
+    "noProjects": "Başka proje yok",
+    "note": "Not",
+    "notePlaceholder": "örn. ad, kadın",
+    "remove": "Terimi kaldır",
+    "source": "Kaynak",
+    "sourcePlaceholder": "Özgün terim",
+    "target": "Çeviri",
+    "targetPlaceholder": "Tam çeviri",
+    "title": "Sözlük"
+  },
   "history": {
     "close": "Geçmişi kapat",
     "opened": "Açıldığında",
@@ -119,6 +135,7 @@
       "recognize": "OCR",
       "resize": "Yeniden boyutlandır",
       "rotate": "Döndür",
+      "set_glossary": "Sözlüğü düzenle",
       "set_locked": "Kilitle veya kilidi aç",
       "set_source_text": "Kaynak metni düzenle",
       "set_style": "Metin stilini değiştir",
